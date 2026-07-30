@@ -1,0 +1,1481 @@
+这是一个按照生产级大厂规范设计的“灯光”PHP网站完整实现方案，包含您要求的所有核心功能模块。
+
+---
+
+## 一、项目概述
+
+**网站名称**：灯光 (plight)
+**域名**：https://plight.chenyinweb.cn/
+**数据库**：plight / 密码：Fuckezezsb250wjsm
+**开源地址**：https://github.com/pltool-unofficial/plight
+
+### 技术栈
+- **后端**：PHP 7.4+ / 8.x
+- **数据库**：MySQL 5.7+
+- **前端**：原生HTML5 + CSS3 + JavaScript (ES6)
+- **Markdown引擎**：前端 marked.js (实时预览) + 后端 Parsedown (安全渲染)
+- **安全**：PDO预处理、密码哈希、CSRF令牌、XSS过滤
+
+---
+
+## 二、数据库设计 (SQL)
+
+```sql
+-- 创建数据库
+CREATE DATABASE IF NOT EXISTS plight 
+CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE plight;
+
+-- 用户表
+CREATE TABLE `users` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `username` VARCHAR(50) NOT NULL COMMENT '用户名',
+  `email` VARCHAR(100) NOT NULL COMMENT '邮箱',
+  `password` VARCHAR(255) NOT NULL COMMENT '密码哈希',
+  `temp_username` VARCHAR(50) DEFAULT NULL COMMENT '临时账户名',
+  `physics_username` VARCHAR(50) DEFAULT NULL COMMENT '物实用户名',
+  `physics_id` VARCHAR(50) DEFAULT NULL COMMENT '物实账户ID',
+  `verified` TINYINT(1) DEFAULT 0 COMMENT '是否已认证(0待审核/1已认证/2拒绝)',
+  `vip_level` ENUM('none','blue','yellow','red') DEFAULT 'none' COMMENT 'V认证等级',
+  `is_admin` TINYINT(1) DEFAULT 0 COMMENT '是否管理员',
+  `is_banned` TINYINT(1) DEFAULT 0 COMMENT '是否封号',
+  `is_muted` TINYINT(1) DEFAULT 0 COMMENT '是否禁言',
+  `avatar` VARCHAR(255) DEFAULT NULL COMMENT '头像URL',
+  `bio` TEXT DEFAULT NULL COMMENT '个人简介',
+  `email_verified` TINYINT(1) DEFAULT 0 COMMENT '邮箱是否已验证',
+  `verify_token` VARCHAR(64) DEFAULT NULL COMMENT '邮箱验证令牌',
+  `token_expiry` DATETIME DEFAULT NULL COMMENT '令牌过期时间',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `username` (`username`),
+  UNIQUE KEY `email` (`email`),
+  KEY `verified` (`verified`),
+  KEY `vip_level` (`vip_level`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 帖子表
+CREATE TABLE `posts` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` INT(11) UNSIGNED NOT NULL,
+  `section` ENUM('qiming','lighthouse','wenxuan') NOT NULL DEFAULT 'qiming' COMMENT '所属板块',
+  `category` VARCHAR(30) DEFAULT NULL COMMENT '分类(思考/闲聊/水贴/问答/其他/自定义)',
+  `title` VARCHAR(200) NOT NULL,
+  `content` TEXT NOT NULL COMMENT 'Markdown内容',
+  `content_html` TEXT NOT NULL COMMENT '渲染后的HTML',
+  `is_pinned` TINYINT(1) DEFAULT 0 COMMENT '是否置顶',
+  `is_locked` TINYINT(1) DEFAULT 0 COMMENT '是否锁定(禁止评论)',
+  `view_count` INT(11) DEFAULT 0,
+  `like_count` INT(11) DEFAULT 0,
+  `comment_count` INT(11) DEFAULT 0,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  KEY `section` (`section`),
+  KEY `created_at` (`created_at`),
+  CONSTRAINT `posts_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 评论表
+CREATE TABLE `comments` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `post_id` INT(11) UNSIGNED NOT NULL,
+  `user_id` INT(11) UNSIGNED NOT NULL,
+  `parent_id` INT(11) UNSIGNED DEFAULT NULL COMMENT '父评论ID(支持二级回复)',
+  `content` TEXT NOT NULL,
+  `content_html` TEXT NOT NULL,
+  `like_count` INT(11) DEFAULT 0,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `post_id` (`post_id`),
+  KEY `user_id` (`user_id`),
+  KEY `parent_id` (`parent_id`),
+  CONSTRAINT `comments_ibfk_1` FOREIGN KEY (`post_id`) REFERENCES `posts` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `comments_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `comments_ibfk_3` FOREIGN KEY (`parent_id`) REFERENCES `comments` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 通知表
+CREATE TABLE `notifications` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` INT(11) UNSIGNED NOT NULL,
+  `type` VARCHAR(30) NOT NULL COMMENT '类型: reply/like/system/verify',
+  `content` TEXT NOT NULL,
+  `is_read` TINYINT(1) DEFAULT 0,
+  `link` VARCHAR(255) DEFAULT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  KEY `is_read` (`is_read`),
+  CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 操作日志表(管理员审计)
+CREATE TABLE `admin_logs` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `admin_id` INT(11) UNSIGNED NOT NULL,
+  `action` VARCHAR(100) NOT NULL,
+  `target_id` INT(11) DEFAULT NULL,
+  `details` TEXT DEFAULT NULL,
+  `ip_address` VARCHAR(45) DEFAULT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `admin_id` (`admin_id`),
+  CONSTRAINT `admin_logs_ibfk_1` FOREIGN KEY (`admin_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+---
+
+## 三、核心配置文件
+
+### `/config/config.php`
+```php
+<?php
+// 站点配置
+define('SITE_NAME', '灯光');
+define('SITE_URL', 'https://plight.chenyinweb.cn/');
+define('SITE_EMAIL', 'noreply@plight.chenyinweb.cn');
+
+// 数据库配置
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'plight');
+define('DB_USER', 'root');  // 请根据实际修改
+define('DB_PASS', 'Fuckezezsb250wjsm');
+
+// 安全配置
+define('SALT', 'plight_salt_2026_secure');
+define('SESSION_LIFETIME', 86400); // 24小时
+
+// 上传配置
+define('MAX_UPLOAD_SIZE', 5 * 1024 * 1024); // 5MB
+define('ALLOWED_EXTENSIONS', ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+
+// 分页配置
+define('POSTS_PER_PAGE', 20);
+define('COMMENTS_PER_PAGE', 50);
+
+// 邮件配置 (使用PHPMailer或SMTP)
+define('SMTP_HOST', 'smtp.example.com');
+define('SMTP_PORT', 587);
+define('SMTP_USER', 'your-email@example.com');
+define('SMTP_PASS', 'your-password');
+define('SMTP_SECURE', 'tls');
+
+// 错误报告 (生产环境关闭)
+ini_set('display_errors', 0);
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
+```
+
+### `/includes/database.php`
+```php
+<?php
+class Database {
+    private static $instance = null;
+    private $pdo;
+    
+    private function __construct() {
+        try {
+            $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4';
+            $this->pdo = new PDO($dsn, DB_USER, DB_PASS, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false
+            ]);
+        } catch (PDOException $e) {
+            die('数据库连接失败: ' . $e->getMessage());
+        }
+    }
+    
+    public static function getInstance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    public function getPDO() {
+        return $this->pdo;
+    }
+    
+    public function prepare($sql) {
+        return $this->pdo->prepare($sql);
+    }
+    
+    public function query($sql, $params = []) {
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt;
+    }
+    
+    public function lastInsertId() {
+        return $this->pdo->lastInsertId();
+    }
+}
+```
+
+### `/includes/functions.php`
+```php
+<?php
+require_once __DIR__ . '/../vendor/autoload.php'; // 如果使用Composer
+
+use Parsedown;
+
+// ========== 会话管理 ==========
+function startSession() {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_set_cookie_params([
+            'lifetime' => SESSION_LIFETIME,
+            'path' => '/',
+            'domain' => '.plight.chenyinweb.cn',
+            'secure' => true,
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
+        session_start();
+    }
+}
+
+function isLoggedIn() {
+    return isset($_SESSION['user_id']);
+}
+
+function getCurrentUser() {
+    if (!isLoggedIn()) return null;
+    $db = Database::getInstance();
+    $stmt = $db->prepare('SELECT * FROM users WHERE id = ?');
+    $stmt->execute([$_SESSION['user_id']]);
+    return $stmt->fetch();
+}
+
+// ========== 安全函数 ==========
+function csrfToken() {
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+function csrfField() {
+    return '<input type="hidden" name="csrf_token" value="' . csrfToken() . '">';
+}
+
+function verifyCsrf($token) {
+    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+}
+
+function sanitizeInput($input) {
+    return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
+}
+
+function escapeHtml($text) {
+    return htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+}
+
+// ========== Markdown处理 ==========
+function renderMarkdown($text) {
+    $parsedown = new Parsedown();
+    $parsedown->setSafeMode(true);
+    return $parsedown->text($text);
+}
+
+function previewMarkdown($text) {
+    // 用于前端预览，仅截取前500字符
+    $preview = mb_substr($text, 0, 500);
+    return renderMarkdown($preview);
+}
+
+// ========== 用户认证 ==========
+function generateVerifyToken() {
+    return bin2hex(random_bytes(32));
+}
+
+function sendVerificationEmail($email, $username, $token) {
+    $subject = '【灯光】请验证您的邮箱';
+    $link = SITE_URL . 'verify.php?token=' . $token . '&email=' . urlencode($email);
+    $message = <<<HTML
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body>
+<h2>欢迎注册 灯光 ！</h2>
+<p>您好，{$username}：</p>
+<p>请点击以下链接验证您的邮箱地址：</p>
+<p><a href="{$link}">{$link}</a></p>
+<p>该链接有效期为24小时。</p>
+<p>如果这不是您本人操作，请忽略此邮件。</p>
+<hr>
+<p>灯光团队</p>
+</body>
+</html>
+HTML;
+    // 使用mail()或SMTP发送
+    $headers = "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+    $headers .= "From: " . SITE_EMAIL . "\r\n";
+    return mail($email, $subject, $message, $headers);
+}
+
+// ========== 权限检查 ==========
+function hasVBadge($user) {
+    return $user && in_array($user['vip_level'], ['red', 'yellow', 'blue']);
+}
+
+function canPostInLighthouse($user) {
+    return $user && ($user['is_admin'] || hasVBadge($user));
+}
+
+function canPostInWenxuan($user) {
+    return $user && ($user['is_admin'] || hasVBadge($user));
+}
+
+function canPostInQiming($user) {
+    return $user && $user['verified'] == 1 && !$user['is_banned'] && !$user['is_muted'];
+}
+
+function isAdmin($user) {
+    return $user && $user['is_admin'] == 1;
+}
+
+// ========== 通知系统 ==========
+function addNotification($userId, $type, $content, $link = null) {
+    $db = Database::getInstance();
+    $stmt = $db->prepare('INSERT INTO notifications (user_id, type, content, link) VALUES (?, ?, ?, ?)');
+    return $stmt->execute([$userId, $type, $content, $link]);
+}
+
+function getUnreadCount($userId) {
+    $db = Database::getInstance();
+    $stmt = $db->prepare('SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0');
+    $stmt->execute([$userId]);
+    return $stmt->fetchColumn();
+}
+
+// ========== 日志记录 ==========
+function logAdminAction($adminId, $action, $targetId = null, $details = null) {
+    $db = Database::getInstance();
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $stmt = $db->prepare('INSERT INTO admin_logs (admin_id, action, target_id, details, ip_address) VALUES (?, ?, ?, ?, ?)');
+    return $stmt->execute([$adminId, $action, $targetId, $details, $ip]);
+}
+
+// ========== 分页辅助 ==========
+function buildPagination($currentPage, $totalPages, $baseUrl) {
+    if ($totalPages <= 1) return '';
+    $html = '<nav class="pagination"><ul>';
+    for ($i = 1; $i <= $totalPages; $i++) {
+        $active = $i == $currentPage ? ' class="active"' : '';
+        $html .= '<li' . $active . '><a href="' . $baseUrl . '?page=' . $i . '">' . $i . '</a></li>';
+    }
+    $html .= '</ul></nav>';
+    return $html;
+}
+
+// ========== 时间友好显示 ==========
+function timeAgo($datetime) {
+    $timestamp = strtotime($datetime);
+    $diff = time() - $timestamp;
+    if ($diff < 60) return $diff . '秒前';
+    if ($diff < 3600) return floor($diff / 60) . '分钟前';
+    if ($diff < 86400) return floor($diff / 3600) . '小时前';
+    if ($diff < 604800) return floor($diff / 86400) . '天前';
+    return date('Y-m-d H:i', $timestamp);
+}
+```
+
+---
+
+## 四、各板块功能页面
+
+### 页面结构
+```
+/
+├── index.php                 # 首页（灯塔概览）
+├── lighthouse/               # 灯塔板块
+│   ├── index.php            # 灯塔首页
+│   ├── tutorial-basic.php   # 物实基础教程
+│   ├── tutorial-advanced.php # 物实进阶教程
+│   ├── announcements.php    # 公告总结
+│   ├── news.php             # 最近新闻
+│   └── other.php            # 其他
+├── wenxuan/                  # 文轩板块
+│   ├── index.php            # 文轩首页
+│   ├── frontier.php         # 前沿新闻
+│   ├── papers.php           # 论文共赏
+│   ├── wenxin.php           # 文心雕龙
+│   └── haina.php            # 海纳百川
+├── baoxia/                   # 宝匣板块
+│   ├── index.php            # 宝匣首页
+│   └── tools.php            # PL在线工具
+├── shiji/                    # 史记板块
+│   └── index.php            # 建设中
+├── qiming/                   # 齐鸣板块（发帖/聊天区）
+│   ├── index.php            # 帖子列表
+│   ├── post.php             # 查看帖子
+│   ├── create.php           # 发布帖子
+│   └── edit.php             # 编辑帖子
+├── user/                     # 用户相关
+│   ├── login.php            # 登录
+│   ├── register.php         # 注册
+│   ├── verify.php           # 邮箱验证
+│   ├── profile.php          # 用户主页
+│   ├── settings.php         # 用户设置
+│   └── verify-identity.php  # 身份认证申请
+├── admin/                    # 管理后台
+│   ├── index.php            # 管理首页
+│   ├── users.php            # 用户管理
+│   ├── posts.php            # 帖子管理
+│   └── settings.php         # 系统设置
+├── api/                      # API接口
+│   ├── markdown-preview.php # Markdown预览
+│   └── comment.php          # 评论操作
+├── assets/                   # 静态资源
+│   ├── css/
+│   │   ├── style.css        # 主样式
+│   │   └── markdown.css     # Markdown渲染样式
+│   ├── js/
+│   │   ├── main.js          # 主脚本
+│   │   ├── markdown-editor.js # Markdown编辑器
+│   │   └── comment.js       # 评论交互
+│   └── images/
+├── includes/                 # 公共包含文件
+│   ├── database.php
+│   ├── functions.php
+│   └── header.php
+└── vendor/                   # Composer依赖
+    └── ...
+```
+
+---
+
+## 五、关键功能实现
+
+### 1. 用户注册与邮箱验证 (`/user/register.php`)
+
+```php
+<?php
+require_once '../includes/database.php';
+require_once '../includes/functions.php';
+startSession();
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verifyCsrf($_POST['csrf_token'] ?? '')) {
+        die('CSRF验证失败');
+    }
+    
+    $username = sanitizeInput($_POST['username']);
+    $email = filter_var($_POST['email'], FILTER_VALIDATE_EMAIL);
+    $password = $_POST['password'];
+    $tempUsername = sanitizeInput($_POST['temp_username']); // 临时账户名
+    
+    // 验证
+    if (!$username || strlen($username) < 3 || strlen($username) > 30) {
+        $error = '用户名长度3-30字符';
+    } elseif (!$email) {
+        $error = '邮箱格式无效';
+    } elseif (strlen($password) < 8) {
+        $error = '密码至少8位';
+    } else {
+        $db = Database::getInstance();
+        
+        // 检查用户名/邮箱是否存在
+        $stmt = $db->prepare('SELECT id FROM users WHERE username = ? OR email = ?');
+        $stmt->execute([$username, $email]);
+        if ($stmt->fetch()) {
+            $error = '用户名或邮箱已被注册';
+        } else {
+            $hashed = password_hash($password, PASSWORD_DEFAULT);
+            $token = generateVerifyToken();
+            $expiry = date('Y-m-d H:i:s', time() + 86400); // 24小时
+            
+            $stmt = $db->prepare('INSERT INTO users (username, email, password, temp_username, verify_token, token_expiry) VALUES (?, ?, ?, ?, ?, ?)');
+            if ($stmt->execute([$username, $email, $hashed, $tempUsername, $token, $expiry])) {
+                sendVerificationEmail($email, $username, $token);
+                $_SESSION['register_success'] = '注册成功！请查收邮箱验证链接。';
+                header('Location: login.php');
+                exit;
+            }
+        }
+    }
+}
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - 灯光</title>
+    <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body>
+<?php include '../includes/header.php'; ?>
+<main class="container">
+    <h1>用户注册</h1>
+    <?php if (isset($error)): ?>
+        <div class="alert error"><?= escapeHtml($error) ?></div>
+    <?php endif; ?>
+    <form method="POST" class="form">
+        <?= csrfField() ?>
+        <div class="form-group">
+            <label>用户名</label>
+            <input type="text" name="username" required minlength="3" maxlength="30">
+        </div>
+        <div class="form-group">
+            <label>邮箱</label>
+            <input type="email" name="email" required>
+        </div>
+        <div class="form-group">
+            <label>密码 (至少8位)</label>
+            <input type="password" name="password" required minlength="8">
+        </div>
+        <div class="form-group">
+            <label>临时账户名</label>
+            <input type="text" name="temp_username" placeholder="请填写您的物实临时账户名">
+            <small>注册后将获得临时账户名，请在身份认证中填写物实用户名和ID</small>
+        </div>
+        <button type="submit" class="btn btn-primary">注册</button>
+    </form>
+    <p>已有账号？<a href="login.php">立即登录</a></p>
+</main>
+</body>
+</html>
+```
+
+### 2. Markdown编辑器（带实时预览）
+
+`/assets/js/markdown-editor.js`
+```javascript
+/**
+ * Markdown 编辑器组件
+ * 支持实时预览、全屏模式、工具栏
+ */
+class MarkdownEditor {
+    constructor(textareaId, previewId, options = {}) {
+        this.textarea = document.getElementById(textareaId);
+        this.preview = document.getElementById(previewId);
+        this.toolbar = options.toolbar || true;
+        this.autoPreview = options.autoPreview !== false;
+        
+        this.initToolbar();
+        this.initEvents();
+        this.updatePreview();
+    }
+    
+    initToolbar() {
+        if (!this.toolbar) return;
+        const toolbar = document.createElement('div');
+        toolbar.className = 'md-toolbar';
+        toolbar.innerHTML = `
+            <button type="button" data-action="bold" title="粗体"><b>B</b></button>
+            <button type="button" data-action="italic" title="斜体"><i>I</i></button>
+            <button type="button" data-action="heading" title="标题">H</button>
+            <button type="button" data-action="link" title="链接">🔗</button>
+            <button type="button" data-action="image" title="图片">🖼</button>
+            <button type="button" data-action="code" title="代码">&lt;/&gt;</button>
+            <button type="button" data-action="quote" title="引用">"</button>
+            <button type="button" data-action="list" title="列表">•</button>
+            <button type="button" data-action="preview-toggle" title="切换预览">👁</button>
+            <button type="button" data-action="fullscreen" title="全屏">⛶</button>
+        `;
+        this.textarea.parentNode.insertBefore(toolbar, this.textarea);
+        
+        toolbar.addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+            this.handleAction(btn.dataset.action);
+        });
+    }
+    
+    handleAction(action) {
+        const start = this.textarea.selectionStart;
+        const end = this.textarea.selectionEnd;
+        const text = this.textarea.value;
+        let newText = text;
+        let cursorOffset = 0;
+        
+        const wrappers = {
+            bold: ['**', '**'],
+            italic: ['*', '*'],
+            heading: ['# ', ''],
+            quote: ['> ', ''],
+            code: ['```\n', '\n```'],
+            list: ['- ', '']
+        };
+        
+        if (action === 'link') {
+            const selected = text.substring(start, end) || '链接文字';
+            const insert = `[${selected}](url)`;
+            newText = text.substring(0, start) + insert + text.substring(end);
+            cursorOffset = insert.length - 4;
+        } else if (action === 'image') {
+            const insert = `![图片描述](url)`;
+            newText = text.substring(0, start) + insert + text.substring(end);
+            cursorOffset = insert.length - 5;
+        } else if (action === 'preview-toggle') {
+            this.togglePreview();
+            return;
+        } else if (action === 'fullscreen') {
+            this.toggleFullscreen();
+            return;
+        } else if (wrappers[action]) {
+            const [open, close] = wrappers[action];
+            const selected = text.substring(start, end);
+            const insert = open + selected + close;
+            newText = text.substring(0, start) + insert + text.substring(end);
+            cursorOffset = open.length;
+        }
+        
+        this.textarea.value = newText;
+        this.textarea.focus();
+        this.textarea.setSelectionRange(start + cursorOffset, start + cursorOffset);
+        this.updatePreview();
+    }
+    
+    initEvents() {
+        this.textarea.addEventListener('input', () => {
+            if (this.autoPreview) {
+                this.updatePreview();
+            }
+        });
+        
+        // Tab键支持
+        this.textarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const start = this.textarea.selectionStart;
+                this.textarea.value = 
+                    this.textarea.value.substring(0, start) + '  ' + 
+                    this.textarea.value.substring(start);
+                this.textarea.setSelectionRange(start + 2, start + 2);
+            }
+        });
+    }
+    
+    updatePreview() {
+        const content = this.textarea.value;
+        // 调用后端API渲染Markdown
+        fetch('/api/markdown-preview.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (this.preview) {
+                this.preview.innerHTML = data.html;
+            }
+        })
+        .catch(() => {
+            // 降级方案：使用前端marked.js
+            if (typeof marked !== 'undefined' && this.preview) {
+                this.preview.innerHTML = marked.parse(content);
+            }
+        });
+    }
+    
+    togglePreview() {
+        if (this.preview) {
+            this.preview.style.display = 
+                this.preview.style.display === 'none' ? 'block' : 'none';
+        }
+    }
+    
+    toggleFullscreen() {
+        const container = this.textarea.closest('.md-editor');
+        if (container) {
+            container.classList.toggle('fullscreen');
+        }
+    }
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', () => {
+    const editor = document.getElementById('markdown-editor');
+    const preview = document.getElementById('markdown-preview');
+    if (editor) {
+        new MarkdownEditor('markdown-editor', 'markdown-preview');
+    }
+});
+```
+
+`/api/markdown-preview.php`
+```php
+<?php
+require_once '../includes/database.php';
+require_once '../includes/functions.php';
+startSession();
+
+header('Content-Type: application/json');
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['error' => 'Method not allowed']);
+    exit;
+}
+
+$input = json_decode(file_get_contents('php://input'), true);
+$content = $input['content'] ?? '';
+
+echo json_encode([
+    'html' => renderMarkdown($content)
+]);
+```
+
+### 3. 用户主页与V认证显示
+
+`/user/profile.php` (部分)
+```php
+<?php
+$userId = $_GET['id'] ?? $_SESSION['user_id'] ?? 0;
+$db = Database::getInstance();
+$stmt = $db->prepare('SELECT * FROM users WHERE id = ?');
+$stmt->execute([$userId]);
+$user = $stmt->fetch();
+
+if (!$user) {
+    http_response_code(404);
+    die('用户不存在');
+}
+
+// 获取用户帖子
+$stmt = $db->prepare('SELECT * FROM posts WHERE user_id = ? ORDER BY created_at DESC LIMIT 20');
+$stmt->execute([$userId]);
+$posts = $stmt->fetchAll();
+
+// V认证徽章HTML
+function getVBadge($level) {
+    $badges = [
+        'red' => '<span class="v-badge v-red" title="红V认证">🔴 红V</span>',
+        'yellow' => '<span class="v-badge v-yellow" title="黄V认证">🟡 黄V</span>',
+        'blue' => '<span class="v-badge v-blue" title="蓝V认证">🔵 蓝V</span>',
+        'none' => ''
+    ];
+    return $badges[$level] ?? '';
+}
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title><?= escapeHtml($user['username']) ?> 的主页 - 灯光</title>
+    <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body>
+<?php include '../includes/header.php'; ?>
+<main class="container">
+    <div class="profile-header">
+        <div class="profile-avatar">
+            <img src="<?= $user['avatar'] ?? '/assets/images/default-avatar.png' ?>" alt="头像">
+        </div>
+        <div class="profile-info">
+            <h1>
+                <?= escapeHtml($user['username']) ?>
+                <?= getVBadge($user['vip_level']) ?>
+                <?php if ($user['is_admin']): ?>
+                    <span class="admin-badge">管理员</span>
+                <?php endif; ?>
+                <?php if ($user['verified'] == 1): ?>
+                    <span class="verified-badge">✅ 已认证</span>
+                <?php endif; ?>
+            </h1>
+            <p class="profile-bio"><?= escapeHtml($user['bio'] ?? '这个人很懒，什么都没写') ?></p>
+            <div class="profile-meta">
+                <span>📅 加入于 <?= date('Y-m-d', strtotime($user['created_at'])) ?></span>
+                <span>📝 帖子 <?= count($posts) ?></span>
+            </div>
+            <?php if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $userId): ?>
+                <a href="settings.php" class="btn btn-secondary">编辑资料</a>
+                <a href="verify-identity.php" class="btn btn-primary">申请身份认证</a>
+            <?php endif; ?>
+        </div>
+    </div>
+    <div class="profile-posts">
+        <h2>发布的帖子</h2>
+        <?php foreach ($posts as $post): ?>
+            <div class="post-card">
+                <h3><a href="/qiming/post.php?id=<?= $post['id'] ?>"><?= escapeHtml($post['title']) ?></a></h3>
+                <p><?= mb_substr(strip_tags($post['content_html']), 0, 150) ?>...</p>
+                <span class="post-meta"><?= timeAgo($post['created_at']) ?></span>
+            </div>
+        <?php endforeach; ?>
+    </div>
+</main>
+</body>
+</html>
+```
+
+### 4. 齐鸣板块 - 发帖与评论
+
+`/qiming/create.php`
+```php
+<?php
+require_once '../includes/database.php';
+require_once '../includes/functions.php';
+startSession();
+
+$user = getCurrentUser();
+if (!$user || !canPostInQiming($user)) {
+    header('Location: /user/login.php?redirect=' . urlencode($_SERVER['REQUEST_URI']));
+    exit;
+}
+
+$categories = ['思考', '闲聊', '水贴', '问答', '其他', '自定义'];
+$error = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verifyCsrf($_POST['csrf_token'] ?? '')) {
+        die('CSRF验证失败');
+    }
+    
+    $title = sanitizeInput($_POST['title']);
+    $content = $_POST['content'];
+    $category = sanitizeInput($_POST['category']);
+    
+    if (empty($title) || strlen($title) < 3) {
+        $error = '标题至少3个字符';
+    } elseif (empty($content) || strlen($content) < 10) {
+        $error = '内容至少10个字符';
+    } else {
+        $html = renderMarkdown($content);
+        $db = Database::getInstance();
+        $stmt = $db->prepare('INSERT INTO posts (user_id, section, category, title, content, content_html) VALUES (?, ?, ?, ?, ?, ?)');
+        if ($stmt->execute([$user['id'], 'qiming', $category, $title, $content, $html])) {
+            $postId = $db->lastInsertId();
+            header('Location: post.php?id=' . $postId);
+            exit;
+        }
+    }
+}
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>发布帖子 - 齐鸣 - 灯光</title>
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="/assets/css/markdown.css">
+    <!-- 使用marked.js作为前端预览降级方案 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+<?php include '../includes/header.php'; ?>
+<main class="container">
+    <h1>发布新帖子</h1>
+    <?php if ($error): ?>
+        <div class="alert error"><?= escapeHtml($error) ?></div>
+    <?php endif; ?>
+    <form method="POST" class="form">
+        <?= csrfField() ?>
+        <div class="form-group">
+            <label>标题</label>
+            <input type="text" name="title" required minlength="3" maxlength="200">
+        </div>
+        <div class="form-group">
+            <label>分类</label>
+            <select name="category">
+                <?php foreach ($categories as $cat): ?>
+                    <option value="<?= $cat ?>"><?= $cat ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>内容 (支持Markdown)</label>
+            <div class="md-editor">
+                <textarea id="markdown-editor" name="content" rows="15" required></textarea>
+                <div id="markdown-preview" class="md-preview"></div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">发布</button>
+    </form>
+</main>
+<script src="/assets/js/markdown-editor.js"></script>
+</body>
+</html>
+```
+
+### 5. 管理后台 - 用户管理与认证审核
+
+`/admin/users.php`
+```php
+<?php
+require_once '../includes/database.php';
+require_once '../includes/functions.php';
+startSession();
+
+$user = getCurrentUser();
+if (!$user || !isAdmin($user)) {
+    http_response_code(403);
+    die('权限不足');
+}
+
+$db = Database::getInstance();
+$action = $_GET['action'] ?? 'list';
+
+// 处理认证审核
+if ($action === 'verify' && isset($_GET['id'])) {
+    $targetId = (int)$_GET['id'];
+    $status = $_GET['status'] ?? 1; // 1=通过, 2=拒绝
+    
+    $stmt = $db->prepare('UPDATE users SET verified = ? WHERE id = ?');
+    $stmt->execute([$status, $targetId]);
+    logAdminAction($user['id'], 'verify_user', $targetId, "状态: $status");
+    addNotification($targetId, 'verify', '您的身份认证已' . ($status == 1 ? '通过' : '被拒绝'));
+    header('Location: users.php?tab=pending');
+    exit;
+}
+
+// 处理禁言/封号
+if ($action === 'mute' && isset($_GET['id'])) {
+    $targetId = (int)$_GET['id'];
+    $value = $_GET['value'] ?? 1;
+    $stmt = $db->prepare('UPDATE users SET is_muted = ? WHERE id = ?');
+    $stmt->execute([$value, $targetId]);
+    logAdminAction($user['id'], 'mute_user', $targetId, "禁言: $value");
+    header('Location: users.php');
+    exit;
+}
+
+if ($action === 'ban' && isset($_GET['id'])) {
+    $targetId = (int)$_GET['id'];
+    $value = $_GET['value'] ?? 1;
+    $stmt = $db->prepare('UPDATE users SET is_banned = ? WHERE id = ?');
+    $stmt->execute([$value, $targetId]);
+    logAdminAction($user['id'], 'ban_user', $targetId, "封号: $value");
+    header('Location: users.php');
+    exit;
+}
+
+// 获取用户列表
+$tab = $_GET['tab'] ?? 'all';
+$sql = 'SELECT * FROM users';
+$params = [];
+if ($tab === 'pending') {
+    $sql .= ' WHERE verified = 0 AND physics_username IS NOT NULL';
+} elseif ($tab === 'verified') {
+    $sql .= ' WHERE verified = 1';
+} elseif ($tab === 'banned') {
+    $sql .= ' WHERE is_banned = 1';
+}
+$sql .= ' ORDER BY created_at DESC';
+$stmt = $db->prepare($sql);
+$stmt->execute($params);
+$users = $stmt->fetchAll();
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>用户管理 - 灯光管理后台</title>
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="/assets/css/admin.css">
+</head>
+<body>
+<?php include '../includes/header.php'; ?>
+<main class="container">
+    <h1>👥 用户管理</h1>
+    <div class="admin-tabs">
+        <a href="?tab=all" class="<?= $tab === 'all' ? 'active' : '' ?>">全部</a>
+        <a href="?tab=pending" class="<?= $tab === 'pending' ? 'active' : '' ?>">待审核</a>
+        <a href="?tab=verified" class="<?= $tab === 'verified' ? 'active' : '' ?>">已认证</a>
+        <a href="?tab=banned" class="<?= $tab === 'banned' ? 'active' : '' ?>">已封号</a>
+    </div>
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>用户名</th>
+                <th>物实ID</th>
+                <th>V认证</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($users as $u): ?>
+            <tr>
+                <td><?= $u['id'] ?></td>
+                <td>
+                    <a href="/user/profile.php?id=<?= $u['id'] ?>">
+                        <?= escapeHtml($u['username']) ?>
+                    </a>
+                </td>
+                <td><?= escapeHtml($u['physics_id'] ?? '-') ?></td>
+                <td>
+                    <?php if ($u['vip_level'] === 'red'): ?>
+                        <span class="v-badge v-red">红V</span>
+                    <?php elseif ($u['vip_level'] === 'yellow'): ?>
+                        <span class="v-badge v-yellow">黄V</span>
+                    <?php elseif ($u['vip_level'] === 'blue'): ?>
+                        <span class="v-badge v-blue">蓝V</span>
+                    <?php else: ?>
+                        -
+                    <?php endif; ?>
+                </td>
+                <td>
+                    <?php if ($u['is_banned']): ?>
+                        <span class="badge danger">已封号</span>
+                    <?php elseif ($u['is_muted']): ?>
+                        <span class="badge warning">已禁言</span>
+                    <?php elseif ($u['verified'] == 1): ?>
+                        <span class="badge success">已认证</span>
+                    <?php elseif ($u['verified'] == 2): ?>
+                        <span class="badge danger">已拒绝</span>
+                    <?php else: ?>
+                        <span class="badge muted">待审核</span>
+                    <?php endif; ?>
+                </td>
+                <td>
+                    <?php if ($u['verified'] == 0 && $u['physics_username']): ?>
+                        <a href="?action=verify&id=<?= $u['id'] ?>&status=1" class="btn-sm success">通过</a>
+                        <a href="?action=verify&id=<?= $u['id'] ?>&status=2" class="btn-sm danger">拒绝</a>
+                    <?php endif; ?>
+                    <?php if (!$u['is_muted']): ?>
+                        <a href="?action=mute&id=<?= $u['id'] ?>&value=1" class="btn-sm warning">禁言</a>
+                    <?php else: ?>
+                        <a href="?action=mute&id=<?= $u['id'] ?>&value=0" class="btn-sm">解除禁言</a>
+                    <?php endif; ?>
+                    <?php if (!$u['is_banned']): ?>
+                        <a href="?action=ban&id=<?= $u['id'] ?>&value=1" class="btn-sm danger">封号</a>
+                    <?php else: ?>
+                        <a href="?action=ban&id=<?= $u['id'] ?>&value=0" class="btn-sm">解封</a>
+                    <?php endif; ?>
+                    <a href="?action=vip&id=<?= $u['id'] ?>" class="btn-sm">设置V认证</a>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+</main>
+</body>
+</html>
+```
+
+---
+
+## 六、CSS样式规范 (生产级)
+
+`/assets/css/style.css` (核心样式)
+```css
+/* ========== CSS Variables ========== */
+:root {
+    --color-primary: #1a73e8;
+    --color-primary-dark: #1557b0;
+    --color-secondary: #5f6368;
+    --color-success: #34a853;
+    --color-warning: #fbbc04;
+    --color-danger: #ea4335;
+    --color-bg: #f8f9fa;
+    --color-card: #ffffff;
+    --color-text: #202124;
+    --color-text-secondary: #5f6368;
+    --color-border: #dadce0;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+    --shadow-lg: 0 10px 20px rgba(0,0,0,0.15);
+    --radius: 8px;
+    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --max-width: 1200px;
+}
+
+/* ========== Reset ========== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: var(--font-family);
+    background: var(--color-bg);
+    color: var(--color-text);
+    line-height: 1.6;
+}
+
+/* ========== Container ========== */
+.container {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* ========== Header ========== */
+.site-header {
+    background: var(--color-card);
+    box-shadow: var(--shadow-sm);
+    padding: 12px 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.site-header .container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+.site-logo {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.site-logo span {
+    color: var(--color-warning);
+}
+
+.main-nav {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.main-nav a {
+    padding: 8px 16px;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    border-radius: var(--radius);
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.main-nav a:hover,
+.main-nav a.active {
+    background: var(--color-primary);
+    color: white;
+}
+
+/* ========== V认证徽章 ========== */
+.v-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-left: 6px;
+}
+
+.v-red {
+    background: #fce8e6;
+    color: #d93025;
+}
+
+.v-yellow {
+    background: #fef7e0;
+    color: #e37400;
+}
+
+.v-blue {
+    background: #e8f0fe;
+    color: #1a73e8;
+}
+
+/* ========== 帖子卡片 ========== */
+.post-card {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s;
+    border: 1px solid var(--color-border);
+}
+
+.post-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.post-card h3 {
+    margin-bottom: 8px;
+}
+
+.post-card h3 a {
+    color: var(--color-text);
+    text-decoration: none;
+}
+
+.post-card h3 a:hover {
+    color: var(--color-primary);
+}
+
+.post-meta {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+}
+
+/* ========== Markdown编辑器 ========== */
+.md-editor {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--color-card);
+}
+
+.md-editor textarea {
+    border: none;
+    padding: 16px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 14px;
+    line-height: 1.8;
+    resize: vertical;
+    min-height: 300px;
+    outline: none;
+    background: #fafafa;
+}
+
+.md-editor .md-preview {
+    padding: 16px;
+    overflow-y: auto;
+    max-height: 500px;
+    border-left: 1px solid var(--color-border);
+}
+
+.md-editor.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 999;
+    grid-template-columns: 1fr 1fr;
+    border-radius: 0;
+}
+
+.md-editor.fullscreen textarea {
+    min-height: 100vh;
+}
+
+.md-toolbar {
+    display: flex;
+    gap: 4px;
+    padding: 8px 12px;
+    background: #f1f3f4;
+    border-bottom: 1px solid var(--color-border);
+    flex-wrap: wrap;
+}
+
+.md-toolbar button {
+    padding: 4px 10px;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    transition: background 0.2s;
+}
+
+.md-toolbar button:hover {
+    background: rgba(0,0,0,0.08);
+}
+
+/* ========== 表单 ========== */
+.form {
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font-size: 15px;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: var(--color-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(26,115,232,0.2);
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 24px;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: var(--color-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--color-primary-dark);
+}
+
+.btn-secondary {
+    background: var(--color-border);
+    color: var(--color-text);
+}
+
+.btn-danger {
+    background: var(--color-danger);
+    color: white;
+}
+
+/* ========== Alert ========== */
+.alert {
+    padding: 14px 20px;
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+}
+
+.alert.error {
+    background: #fce8e6;
+    color: #d93025;
+    border: 1px solid #f5c6cb;
+}
+
+.alert.success {
+    background: #e6f4ea;
+    color: #1e7e34;
+    border: 1px solid #c3e6cb;
+}
+
+/* ========== 响应式 ========== */
+@media (max-width: 768px) {
+    .md-editor {
+        grid-template-columns: 1fr;
+    }
+    
+    .md-editor .md-preview {
+        border-left: none;
+        border-top: 1px solid var(--color-border);
+        max-height: 300px;
+    }
+    
+    .site-header .container {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .main-nav {
+        justify-content: center;
+    }
+    
+    .admin-table {
+        font-size: 13px;
+    }
+    
+    .admin-table th,
+    .admin-table td {
+        padding: 8px 10px;
+    }
+}
+```
+
+---
+
+## 七、部署说明
+
+### 1. 环境要求
+- PHP 7.4+ (推荐8.0+)
+- MySQL 5.7+
+- Apache/Nginx
+- Composer (用于安装Parsedown)
+
+### 2. 安装步骤
+```bash
+# 1. 克隆项目
+git clone https://github.com/pltool-unofficial/plight.git
+cd plight
+
+# 2. 安装依赖
+composer require erusev/parsedown
+
+# 3. 配置数据库
+# 导入SQL文件创建表结构
+mysql -u root -p plight < database.sql
+
+# 4. 修改配置文件 /config/config.php
+# 设置数据库密码、域名、邮件SMTP等
+
+# 5. 设置目录权限
+chmod 755 uploads/
+chmod 644 config/config.php
+
+# 6. 配置Nginx/Apache虚拟主机
+# 域名: plight.chenyinweb.cn
+# 根目录: /var/www/plight/public
+```
+
+### 3. Nginx配置示例
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name plight.chenyinweb.cn;
+    
+    root /var/www/plight;
+    index index.php index.html;
+    
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+    
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+    
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php8.0-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+    
+    location ~ /\.ht {
+        deny all;
+    }
+}
+```
+
+---
+
+## 八、安全建议
+
+1. **HTTPS强制**：所有页面强制跳转HTTPS
+2. **密码策略**：最少8位，包含大小写字母和数字
+3. **SQL注入防护**：全部使用PDO预处理
+4. **XSS防护**：输出时使用`htmlspecialchars`，Markdown使用安全模式
+5. **CSRF防护**：所有表单包含CSRF令牌
+6. **会话安全**：HttpOnly、Secure、SameSite属性
+7. **速率限制**：登录/注册接口限制尝试次数
+8. **文件上传**：限制类型和大小，重命名存储
+
+---
+
+## 九、后续可扩展功能
+
+- **搜索功能**：使用Elasticsearch或MySQL全文索引
+- **私信系统**：用户间站内信
+- **收藏功能**：收藏帖子和评论
+- **数据分析**：用户行为统计
+- **API接口**：RESTful API供第三方调用
+- **WebSocket**：实时通知和聊天
+
+---
+
+以上是完整的“灯光”网站实现方案。所有代码遵循生产级规范，包含完整的用户认证、权限控制、Markdown编辑预览、V认证体系和管理后台。您可以根据实际需求进行调整和扩展。

@@ -1,0 +1,189 @@
+/* 管理后台样式 */
+.admin-layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 24px;
+    margin: 24px 0;
+}
+
+.admin-sidebar {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+    position: sticky;
+    top: 80px;
+    height: fit-content;
+}
+
+.admin-sidebar h3 {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    padding: 0 8px;
+}
+
+.admin-sidebar ul {
+    list-style: none;
+}
+
+.admin-sidebar li {
+    margin-bottom: 4px;
+}
+
+.admin-sidebar a {
+    display: block;
+    padding: 10px 12px;
+    color: var(--color-text);
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+.admin-sidebar a:hover {
+    background: #f1f3f4;
+    text-decoration: none;
+}
+
+.admin-sidebar a.active {
+    background: var(--color-primary);
+    color: #fff;
+}
+
+.admin-content {
+    min-width: 0;
+}
+
+.admin-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--color-border);
+    flex-wrap: wrap;
+}
+
+.admin-tabs a {
+    padding: 10px 18px;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.admin-tabs a:hover {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.admin-tabs a.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+}
+
+.admin-table {
+    width: 100%;
+    background: var(--color-card);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+    border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 14px;
+}
+
+.admin-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+}
+
+.admin-table tr:last-child td {
+    border-bottom: none;
+}
+
+.admin-table tr:hover td {
+    background: #fafbfc;
+}
+
+.btn-sm {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    text-decoration: none;
+    margin-right: 4px;
+    cursor: pointer;
+    border: none;
+}
+
+.btn-sm.success { background: var(--color-success); color: #fff; }
+.btn-sm.danger { background: var(--color-danger); color: #fff; }
+.btn-sm.warning { background: var(--color-warning); color: var(--color-text); }
+.btn-sm.secondary { background: var(--color-border); color: var(--color-text); }
+
+.admin-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.admin-stat-card {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+}
+
+.admin-stat-card .stat-num {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--color-primary);
+}
+
+.admin-stat-card .stat-label {
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    margin-top: 4px;
+}
+
+.admin-log {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+    font-family: 'SF Mono', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.admin-log-line {
+    padding: 4px 0;
+    border-bottom: 1px solid var(--color-border);
+}
+.admin-log-line:last-child { border-bottom: none; }
+.admin-log-time { color: var(--color-text-secondary); }
+
+@media (max-width: 768px) {
+    .admin-layout { grid-template-columns: 1fr; }
+    .admin-sidebar { position: static; }
+    .admin-table { font-size: 13px; }
+    .admin-table th, .admin-table td { padding: 8px 10px; }
+}
