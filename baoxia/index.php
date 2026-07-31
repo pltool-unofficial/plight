@@ -5,16 +5,14 @@ include __DIR__ . '/../includes/header.php';
 
 $cards = [
     ['tools.php', 'PL在线工具', '物理实验常用在线工具集合'],
-    ['#', '资源下载', '建设中,即将开放'],
-    ['#', '实验手册', '建设中,即将开放'],
+    ['resources.php', '资源下载', '实验资料、模板与参考文档下载'],
+    ['manual.php', '实验手册', '实验操作指南与入门手册'],
 ];
 ?>
 <main class="container">
-    <div class="home-section-head">
-        <div>
-            <h1 class="page-title" style="margin:0 0 4px;">宝匣</h1>
-            <p class="post-meta">物理实验工具与资源宝匣,提供便捷在线工具与资料。</p>
-        </div>
+    <div class="portal-page-header">
+        <h1>🧰 宝匣</h1>
+        <p>物理实验工具与资源宝匣，提供便捷在线工具与资料。</p>
     </div>
     <div class="section-grid">
         <?php foreach ($cards as $card): ?>

@@ -22,12 +22,13 @@ $currentPath = $_SERVER['REQUEST_URI'] ?? '';
     <link rel="stylesheet" href="/assets/css/admin.css">
     <?php endif; ?>
 </head>
-<body>
+<body class="<?= isMobile() ? 'device-mobile' : 'device-desktop' ?>">
 <header class="site-header">
     <div class="container">
         <a href="/index.php" class="site-logo">灯<span>光</span></a>
         <nav class="main-nav">
             <a href="/index.php" class="<?= strpos($currentPath, '/index.php') !== false || $currentPath === '/' ? 'active' : '' ?>">首页</a>
+            <a href="/announcements.php" class="<?= strpos($currentPath, '/announcements.php') !== false ? 'active' : '' ?>">公告</a>
             <a href="/lighthouse/index.php" class="<?= strpos($currentPath, '/lighthouse/') !== false ? 'active' : '' ?>">灯塔</a>
             <a href="/wenxuan/index.php" class="<?= strpos($currentPath, '/wenxuan/') !== false ? 'active' : '' ?>">文轩</a>
             <a href="/baoxia/index.php" class="<?= strpos($currentPath, '/baoxia/') !== false ? 'active' : '' ?>">宝匣</a>

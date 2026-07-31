@@ -16,13 +16,14 @@ $cards = [
 ];
 ?>
 <main class="container">
-    <div class="home-section-head">
-        <div>
-            <h1 class="page-title" style="margin:0 0 4px;">文轩</h1>
-            <p class="post-meta">学术与人文交汇之所,汇聚前沿、论文与随笔。</p>
-        </div>
+    <div class="portal-page-header">
+        <h1>📚 文轩</h1>
+        <p>学术与人文交汇之所，汇聚前沿、论文与随笔。</p>
+    </div>
+
+    <div class="section-toolbar" style="justify-content:flex-end;margin-bottom:20px;">
         <?php if (canPostInWenxuan($currentUser)): ?>
-            <a href="/qiming/create.php?section=wenxuan" class="btn btn-sm btn-primary">发布文轩帖</a>
+            <a href="/qiming/create.php?section=wenxuan" class="btn btn-primary">发布文轩帖</a>
         <?php endif; ?>
     </div>
 

@@ -1,0 +1,31 @@
+[Thu Jul 30 21:10:36 2026] PHP 8.2.33 Development Server (http://localhost:8088) started
+[Thu Jul 30 21:10:38 2026] [::1]:65042 Accepted
+[Thu Jul 30 21:10:42 2026] [::1]:65042 [200]: GET /
+[Thu Jul 30 21:10:42 2026] [::1]:65042 Closing
+[Thu Jul 30 21:10:42 2026] [::1]:65045 Accepted
+[Thu Jul 30 21:10:46 2026] [::1]:65045 [200]: GET /index.php
+[Thu Jul 30 21:10:46 2026] [::1]:65045 Closing
+[Thu Jul 30 21:10:46 2026] [::1]:65048 Accepted
+[Thu Jul 30 21:10:50 2026] [::1]:65048 [200]: GET /announcements.php
+[Thu Jul 30 21:10:50 2026] [::1]:65048 Closing
+[Thu Jul 30 21:10:50 2026] [::1]:60771 Accepted
+[Thu Jul 30 21:10:55 2026] [::1]:60771 [200]: GET /lighthouse/index.php
+[Thu Jul 30 21:10:55 2026] [::1]:60771 Closing
+[Thu Jul 30 21:10:55 2026] [::1]:60774 Accepted
+[Thu Jul 30 21:10:59 2026] [::1]:60774 [200]: GET /wenxuan/index.php
+[Thu Jul 30 21:10:59 2026] [::1]:60774 Closing
+[Thu Jul 30 21:10:59 2026] [::1]:60777 Accepted
+[Thu Jul 30 21:10:59 2026] [::1]:60777 [200]: GET /baoxia/index.php
+[Thu Jul 30 21:10:59 2026] [::1]:60777 Closing
+[Thu Jul 30 21:10:59 2026] [::1]:60778 Accepted
+[Thu Jul 30 21:10:59 2026] [::1]:60778 [200]: GET /shiji/index.php
+[Thu Jul 30 21:10:59 2026] [::1]:60778 Closing
+[Thu Jul 30 21:10:59 2026] [::1]:60779 Accepted
+[Thu Jul 30 21:11:03 2026] [::1]:60779 [200]: GET /qiming/index.php
+[Thu Jul 30 21:11:03 2026] [::1]:60779 Closing
+[Thu Jul 30 21:11:03 2026] [::1]:60792 Accepted
+[Thu Jul 30 21:11:03 2026] [::1]:60792 [200]: GET /user/login.php
+[Thu Jul 30 21:11:03 2026] [::1]:60792 Closing
+[Thu Jul 30 21:11:03 2026] [::1]:60793 Accepted
+[Thu Jul 30 21:11:03 2026] [::1]:60793 [200]: GET /user/register.php
+[Thu Jul 30 21:11:03 2026] [::1]:60793 Closing

@@ -37,6 +37,22 @@ function getCurrentUser() {
     return $stmt->fetch();
 }
 
+// ========== 设备检测 ==========
+function isMobile() {
+    $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    $mobileAgents = [
+        'Mobile', 'Android', 'iPhone', 'iPad', 'iPod', 'Windows Phone',
+        'BlackBerry', 'Opera Mini', 'IEMobile', 'webOS', 'Kindle',
+        'Silk', 'SamsungBrowser', 'UCBrowser', 'MIUIBrowser'
+    ];
+    foreach ($mobileAgents as $agent) {
+        if (stripos($ua, $agent) !== false) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // ========== 安全函数 ==========
 function csrfToken() {
     if (empty($_SESSION['csrf_token'])) {
@@ -134,10 +150,14 @@ function addNotification($userId, $type, $content, $link = null) {
 }
 
 function getUnreadCount($userId) {
-    $db = Database::getInstance();
-    $stmt = $db->prepare('SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0');
-    $stmt->execute([$userId]);
-    return $stmt->fetchColumn();
+    try {
+        $db = Database::getInstance();
+        $stmt = $db->prepare('SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0');
+        $stmt->execute([$userId]);
+        return $stmt->fetchColumn();
+    } catch (PDOException $e) {
+        return 0;
+    }
 }
 
 // ========== 日志记录 ==========
@@ -187,4 +207,140 @@ function incrementViewCount($postId) {
     $db = Database::getInstance();
     $stmt = $db->prepare('UPDATE posts SET view_count = view_count + 1 WHERE id = ?');
     return $stmt->execute([$postId]);
+}
+
+// ========== 公告系统 ==========
+/**
+ * 获取公告列表（支持分页、过滤）
+ * @param array $options 查询选项
+ *   - active_only: bool 只获取启用的公告
+ *   - limit: int 限制数量
+ *   - offset: int 偏移量
+ *   - type: string 公告类型
+ * @return array
+ */
+function getAnnouncements(array $options = []) {
+    try {
+        $db = Database::getInstance();
+        $where = [];
+        $params = [];
+
+        if (!empty($options['active_only'])) {
+            $where[] = 'a.is_active = 1';
+            $where[] = '(a.expires_at IS NULL OR a.expires_at > NOW())';
+        }
+        if (!empty($options['type'])) {
+            $where[] = 'a.type = ?';
+            $params[] = $options['type'];
+        }
+
+        $whereClause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+        $limit = isset($options['limit']) ? (int)$options['limit'] : 20;
+        $offset = isset($options['offset']) ? (int)$options['offset'] : 0;
+
+        $sql = "SELECT a.*, u.username AS author_name, u.avatar AS author_avatar, u.vip_level,
+                       uu.username AS updater_name
+                FROM announcements a
+                JOIN users u ON a.created_by = u.id
+                LEFT JOIN users uu ON a.updated_by = uu.id
+                {$whereClause}
+                ORDER BY a.is_pinned DESC, a.created_at DESC
+                LIMIT {$limit} OFFSET {$offset}";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+/**
+ * 获取单个公告
+ */
+function getAnnouncement($id) {
+    try {
+        $db = Database::getInstance();
+        $stmt = $db->prepare(
+            'SELECT a.*, u.username AS author_name, u.avatar AS author_avatar, u.vip_level,
+                    uu.username AS updater_name
+             FROM announcements a
+             JOIN users u ON a.created_by = u.id
+             LEFT JOIN users uu ON a.updated_by = uu.id
+             WHERE a.id = ?'
+        );
+        $stmt->execute([$id]);
+        return $stmt->fetch();
+    } catch (PDOException $e) {
+        return null;
+    }
+}
+
+/**
+ * 获取公告总数
+ */
+function getAnnouncementsCount(array $options = []) {
+    try {
+        $db = Database::getInstance();
+        $where = [];
+        $params = [];
+
+        if (!empty($options['active_only'])) {
+            $where[] = 'is_active = 1';
+            $where[] = '(expires_at IS NULL OR expires_at > NOW())';
+        }
+        if (!empty($options['type'])) {
+            $where[] = 'type = ?';
+            $params[] = $options['type'];
+        }
+
+        $whereClause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+        $stmt = $db->prepare("SELECT COUNT(*) FROM announcements {$whereClause}");
+        $stmt->execute($params);
+        return (int)$stmt->fetchColumn();
+    } catch (PDOException $e) {
+        return 0;
+    }
+}
+
+/**
+ * 获取公告类型的中文名称
+ */
+function getAnnouncementTypeName($type) {
+    $names = [
+        'info' => '通知',
+        'success' => '喜讯',
+        'warning' => '提醒',
+        'danger' => '紧急',
+        'maintenance' => '维护',
+    ];
+    return $names[$type] ?? '通知';
+}
+
+/**
+ * 获取公告类型的CSS类名
+ */
+function getAnnouncementTypeClass($type) {
+    $classes = [
+        'info' => 'ann-info',
+        'success' => 'ann-success',
+        'warning' => 'ann-warning',
+        'danger' => 'ann-danger',
+        'maintenance' => 'ann-maintenance',
+    ];
+    return $classes[$type] ?? 'ann-info';
+}
+
+/**
+ * 获取公告类型的图标emoji
+ */
+function getAnnouncementTypeIcon($type) {
+    $icons = [
+        'info' => '📢',
+        'success' => '🎉',
+        'warning' => '⚠️',
+        'danger' => '🚨',
+        'maintenance' => '🔧',
+    ];
+    return $icons[$type] ?? '📢';
 }

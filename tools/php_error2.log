@@ -1,0 +1,13 @@
+[Thu Jul 30 21:11:30 2026] PHP 8.2.33 Development Server (http://localhost:8088) started
+[Thu Jul 30 21:11:32 2026] [::1]:60815 Accepted
+[Thu Jul 30 21:11:36 2026] [::1]:60815 [200]: GET /
+[Thu Jul 30 21:11:36 2026] [::1]:60815 Closing
+[Thu Jul 30 21:11:36 2026] [::1]:60819 Accepted
+[Thu Jul 30 21:11:40 2026] [::1]:60819 [200]: GET /
+[Thu Jul 30 21:11:40 2026] [::1]:60819 Closing
+[Thu Jul 30 21:11:40 2026] [::1]:60823 Accepted
+[Thu Jul 30 21:11:44 2026] [::1]:60823 [200]: GET /announcements.php
+[Thu Jul 30 21:11:44 2026] [::1]:60823 Closing
+[Thu Jul 30 21:11:44 2026] [::1]:60826 Accepted
+[Thu Jul 30 21:11:48 2026] [::1]:60826 [200]: GET /qiming/index.php
+[Thu Jul 30 21:11:48 2026] [::1]:60826 Closing

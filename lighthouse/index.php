@@ -17,13 +17,14 @@ $cards = [
 ];
 ?>
 <main class="container">
-    <div class="home-section-head">
-        <div>
-            <h1 class="page-title" style="margin:0 0 4px;">灯塔</h1>
-            <p class="post-meta">物理实验学习与教程中心,汇聚基础与进阶指引。</p>
-        </div>
+    <div class="portal-page-header">
+        <h1>💡 灯塔</h1>
+        <p>物理实验学习与教程中心，汇聚基础与进阶指引。</p>
+    </div>
+
+    <div class="section-toolbar" style="justify-content:flex-end;margin-bottom:20px;">
         <?php if (canPostInLighthouse($currentUser)): ?>
-            <a href="/qiming/create.php?section=lighthouse" class="btn btn-sm btn-primary">发布灯塔帖</a>
+            <a href="/qiming/create.php?section=lighthouse" class="btn btn-primary">发布灯塔帖</a>
         <?php endif; ?>
     </div>
 

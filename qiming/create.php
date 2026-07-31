@@ -78,11 +78,14 @@ $useMarkdown = true;
 include __DIR__ . '/../includes/header.php';
 ?>
 <main class="container">
-    <h1>发布新帖子</h1>
+    <div class="portal-page-header">
+        <h1>✍️ 发布新帖子</h1>
+        <p>在 <?= escapeHtml($section === 'qiming' ? '齐鸣' : ($section === 'lighthouse' ? '灯塔' : '文轩')) ?> 板块分享你的观点与内容。</p>
+    </div>
     <?php if ($error): ?>
         <div class="alert error"><?= escapeHtml($error) ?></div>
     <?php endif; ?>
-    <form method="POST" class="form">
+    <form method="POST" class="form portal-card">
         <?= csrfField() ?>
         <input type="hidden" name="section" value="<?= escapeHtml($section) ?>">
         <div class="form-group">

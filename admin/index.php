@@ -13,6 +13,13 @@ $db = Database::getInstance();
 // 统计数据
 $totalUsers = $db->query('SELECT COUNT(*) FROM users')->fetchColumn();
 $totalPosts = $db->query('SELECT COUNT(*) FROM posts')->fetchColumn();
+try {
+    $totalAnnouncements = $db->query('SELECT COUNT(*) FROM announcements')->fetchColumn();
+    $activeAnnouncements = $db->query('SELECT COUNT(*) FROM announcements WHERE is_active = 1 AND (expires_at IS NULL OR expires_at > NOW())')->fetchColumn();
+} catch (PDOException $e) {
+    $totalAnnouncements = 0;
+    $activeAnnouncements = 0;
+}
 $pendingUsers = $db->query("SELECT COUNT(*) FROM users WHERE verified = 0 AND physics_username IS NOT NULL")->fetchColumn();
 $bannedUsers = $db->query('SELECT COUNT(*) FROM users WHERE is_banned = 1')->fetchColumn();
 
@@ -39,6 +46,7 @@ include __DIR__ . '/../includes/header.php';
                 <li><a href="index.php" class="active">首页</a></li>
                 <li><a href="users.php">用户管理</a></li>
                 <li><a href="posts.php">帖子管理</a></li>
+                <li><a href="announcements.php">公告管理</a></li>
                 <li><a href="settings.php">系统设置</a></li>
                 <li><a href="index.php#logs">操作日志</a></li>
             </ul>
@@ -55,12 +63,34 @@ include __DIR__ . '/../includes/header.php';
                     <div class="stat-label">总帖子数</div>
                 </div>
                 <div class="admin-stat-card">
+                    <div class="stat-num"><?= (int)$activeAnnouncements ?></div>
+                    <div class="stat-label">生效公告</div>
+                </div>
+                <div class="admin-stat-card">
                     <div class="stat-num"><?= (int)$pendingUsers ?></div>
                     <div class="stat-label">待审核用户数</div>
                 </div>
-                <div class="admin-stat-card">
-                    <div class="stat-num"><?= (int)$bannedUsers ?></div>
-                    <div class="stat-label">已封号用户数</div>
+            </div>
+
+            <div class="admin-quick-actions">
+                <h2>快捷操作</h2>
+                <div class="admin-action-grid">
+                    <a href="announcements.php?action=create" class="admin-action-card">
+                        <span class="admin-action-icon">📢</span>
+                        <span class="admin-action-text">发布公告</span>
+                    </a>
+                    <a href="announcements.php" class="admin-action-card">
+                        <span class="admin-action-icon">📋</span>
+                        <span class="admin-action-text">管理公告</span>
+                    </a>
+                    <a href="users.php" class="admin-action-card">
+                        <span class="admin-action-icon">👥</span>
+                        <span class="admin-action-text">用户管理</span>
+                    </a>
+                    <a href="posts.php" class="admin-action-card">
+                        <span class="admin-action-icon">📝</span>
+                        <span class="admin-action-text">帖子管理</span>
+                    </a>
                 </div>
             </div>
 
