@@ -17,14 +17,13 @@ $cards = [
 ];
 ?>
 <main class="container">
-    <div class="portal-page-header">
-        <h1>💡 灯塔</h1>
-        <p>物理实验学习与教程中心，汇聚基础与进阶指引。</p>
-    </div>
-
-    <div class="section-toolbar" style="justify-content:flex-end;margin-bottom:20px;">
+    <div class="home-section-head">
+        <div>
+            <h1 class="page-title" style="margin:0 0 4px;">灯塔</h1>
+            <p class="post-meta">物理实验学习与教程中心,汇聚基础与进阶指引。</p>
+        </div>
         <?php if (canPostInLighthouse($currentUser)): ?>
-            <a href="/qiming/create.php?section=lighthouse" class="btn btn-primary">发布灯塔帖</a>
+            <a href="/qiming/create.php?section=lighthouse" class="btn btn-sm btn-primary">发布灯塔帖</a>
         <?php endif; ?>
     </div>
 
@@ -46,7 +45,7 @@ $cards = [
                 <?php foreach ($posts as $post): ?>
                     <li class="post-list-item">
                         <?php if ($post['is_pinned']): ?><span class="pin-tag">置顶</span><?php endif; ?>
-                        <a href="/qiming/post.php?id=<?= (int)$post['id'] ?>" class="post-list-title"><?= escapeHtml($post['title']) ?></a>
+                        <a href="<?= postUrl($post['id']) ?>" class="post-list-title"><?= escapeHtml($post['title']) ?></a>
                         <div class="post-list-meta">作者: <?= escapeHtml($post['username']) ?> <?= getVBadge($post['vip_level']) ?> · <?= timeAgo($post['created_at']) ?> · 评论 <?= (int)$post['comment_count'] ?> · 浏览 <?= (int)$post['view_count'] ?></div>
                     </li>
                 <?php endforeach; ?>

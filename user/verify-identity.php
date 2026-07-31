@@ -19,26 +19,35 @@ if (!$user) {
 $error = '';
 $success = '';
 
+// 已认证用户禁止重复提交（verified==1），仅 verified==0 或 verified==2 或从未申请者可提交
+$canSubmit = !($user['verified'] == 1);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verifyCsrf($_POST['csrf_token'] ?? '')) {
-        die('CSRF验证失败');
+        csrfFail();
     }
 
-    $physicsUsername = sanitizeInput($_POST['physics_username'] ?? '');
-    $physicsId = sanitizeInput($_POST['physics_id'] ?? '');
-
-    if ($physicsUsername === '' || strlen($physicsUsername) > 50) {
-        $error = '请填写有效的物实用户名（1-50字符）';
-    } elseif ($physicsId === '' || strlen($physicsId) > 50) {
-        $error = '请填写有效的物实账户ID（1-50字符）';
+    if (!$canSubmit) {
+        $error = '您已认证，如需修改请联系管理员';
     } else {
-        // 提交后设置为待审核(verified=0)，并保存物实信息
-        $stmt = $db->prepare('UPDATE users SET physics_username = ?, physics_id = ?, verified = 0 WHERE id = ?');
-        if ($stmt->execute([$physicsUsername, $physicsId, $user['id']])) {
-            $success = '身份认证申请已提交，等待管理员审核';
-            $user = getCurrentUser();
+        $physicsUsername = sanitizeInput($_POST['physics_username'] ?? '');
+        $physicsId = sanitizeInput($_POST['physics_id'] ?? '');
+
+        if ($physicsUsername === '' || strlen($physicsUsername) > 50) {
+            $error = '请填写有效的物实用户名（1-50字符）';
+        } elseif ($physicsId === '' || strlen($physicsId) > 50) {
+            $error = '请填写有效的物实账户ID（1-50字符）';
         } else {
-            $error = '提交失败，请稍后重试';
+            // 提交后设置为待审核(verified=0)，并保存物实信息（入库存原始值）
+            $stmt = $db->prepare('UPDATE users SET physics_username = ?, physics_id = ?, verified = 0 WHERE id = ?');
+            if ($stmt->execute([$physicsUsername, $physicsId, $user['id']])) {
+                $success = '身份认证申请已提交，等待管理员审核';
+                $user = getCurrentUser();
+                // 提交成功后变为待审核状态，禁止再次提交
+                $canSubmit = false;
+            } else {
+                $error = '提交失败，请稍后重试';
+            }
         }
     }
 }
@@ -72,6 +81,7 @@ include __DIR__ . '/../includes/header.php';
             </p>
         </div>
 
+        <?php if ($canSubmit): ?>
         <form method="POST" class="form">
             <?= csrfField() ?>
             <div class="form-group">
@@ -84,6 +94,9 @@ include __DIR__ . '/../includes/header.php';
             </div>
             <button type="submit" class="btn btn-primary">提交认证申请</button>
         </form>
+        <?php else: ?>
+        <div class="alert info">您已认证，如需修改请联系管理员。</div>
+        <?php endif; ?>
     </div>
 </main>
 <?php include __DIR__ . '/../includes/footer.php'; ?>

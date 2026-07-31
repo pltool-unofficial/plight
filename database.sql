@@ -91,35 +91,13 @@ CREATE TABLE `notifications` (
 -- 操作日志表(管理员审计)
 CREATE TABLE `admin_logs` (
   `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `admin_id` INT(11) UNSIGNED NOT NULL,
+  `admin_id` INT(11) UNSIGNED DEFAULT NULL,
   `action` VARCHAR(100) NOT NULL,
-  `target_id` INT(11) DEFAULT NULL,
+  `target_id` INT(11) UNSIGNED DEFAULT NULL,
   `details` TEXT DEFAULT NULL,
   `ip_address` VARCHAR(45) DEFAULT NULL,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `admin_id` (`admin_id`),
-  CONSTRAINT `admin_logs_ibfk_1` FOREIGN KEY (`admin_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 公告表
-CREATE TABLE `announcements` (
-  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `title` VARCHAR(200) NOT NULL COMMENT '公告标题',
-  `content` TEXT NOT NULL COMMENT 'Markdown内容',
-  `content_html` TEXT NOT NULL COMMENT '渲染后的HTML',
-  `type` ENUM('info','success','warning','danger','maintenance') NOT NULL DEFAULT 'info' COMMENT '公告类型',
-  `is_pinned` TINYINT(1) DEFAULT 0 COMMENT '是否置顶',
-  `is_active` TINYINT(1) DEFAULT 1 COMMENT '是否启用',
-  `created_by` INT(11) UNSIGNED NOT NULL COMMENT '创建者(管理员ID)',
-  `updated_by` INT(11) UNSIGNED DEFAULT NULL COMMENT '最后更新者',
-  `expires_at` DATETIME DEFAULT NULL COMMENT '过期时间(NULL为永不过期)',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `is_active` (`is_active`),
-  KEY `is_pinned` (`is_pinned`),
-  KEY `type` (`type`),
-  KEY `created_by` (`created_by`),
-  CONSTRAINT `announcements_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE CASCADE
+  CONSTRAINT `admin_logs_ibfk_1` FOREIGN KEY (`admin_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

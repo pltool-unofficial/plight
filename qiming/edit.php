@@ -5,23 +5,20 @@ startSession();
 $currentUser = getCurrentUser();
 $postId = (int)($_GET['id'] ?? 0);
 if ($postId <= 0) {
-    http_response_code(404);
-    die('帖子不存在');
+    renderErrorPage('帖子不存在', '您要编辑的帖子不存在。', 404);
 }
 
 $db = Database::getInstance();
-$stmt = $db->prepare('SELECT * FROM posts WHERE id = ? AND section = "qiming"');
+$stmt = $db->prepare('SELECT * FROM posts WHERE id = ?');
 $stmt->execute([$postId]);
 $post = $stmt->fetch();
 
 if (!$post) {
-    http_response_code(404);
-    die('帖子不存在');
+    renderErrorPage('帖子不存在', '您要编辑的帖子不存在。', 404);
 }
 
 if (!$currentUser || ($currentUser['id'] != $post['user_id'] && !isAdmin($currentUser))) {
-    http_response_code(403);
-    die('无权编辑此帖子');
+    renderErrorPage('无权操作', '您没有权限编辑此帖子。', 403);
 }
 
 $categories = ['思考', '闲聊', '水贴', '问答', '其他', '自定义'];
@@ -32,7 +29,13 @@ $content = $post['content'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verifyCsrf($_POST['csrf_token'] ?? '')) {
-        die('CSRF验证失败');
+        csrfFail();
+    }
+
+    // section 用隐藏字段保持原值
+    $section = $_POST['section'] ?? $post['section'];
+    if (!in_array($section, ['qiming', 'lighthouse', 'wenxuan'], true)) {
+        $section = $post['section'];
     }
 
     $title = sanitizeInput($_POST['title'] ?? '');
@@ -44,13 +47,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($title) || mb_strlen($title) < 3) {
         $error = '标题至少3个字符';
+    } elseif (mb_strlen($title) > 200) {
+        $error = '标题不能超过200个字符';
     } elseif (empty($content) || mb_strlen($content) < 10) {
         $error = '内容至少10个字符';
     } else {
         $html = renderMarkdown($content);
-        $stmt = $db->prepare('UPDATE posts SET title = ?, category = ?, content = ?, content_html = ?, updated_at = NOW() WHERE id = ?');
-        if ($stmt->execute([$title, $category, $content, $html, $postId])) {
-            header('Location: post.php?id=' . $postId);
+        $stmt = $db->prepare('UPDATE posts SET section = ?, title = ?, category = ?, content = ?, content_html = ?, updated_at = NOW() WHERE id = ?');
+        if ($stmt->execute([$section, $title, $category, $content, $html, $postId])) {
+            header('Location: ' . postUrl($postId));
             exit;
         }
         $error = '更新失败，请重试';
@@ -68,6 +73,7 @@ include __DIR__ . '/../includes/header.php';
     <?php endif; ?>
     <form method="POST" class="form">
         <?= csrfField() ?>
+        <input type="hidden" name="section" value="<?= escapeHtml($post['section']) ?>">
         <div class="form-group">
             <label for="title">标题</label>
             <input type="text" id="title" name="title" required minlength="3" maxlength="200" value="<?= escapeHtml($title) ?>">
@@ -88,9 +94,8 @@ include __DIR__ . '/../includes/header.php';
             </div>
         </div>
         <button type="submit" class="btn btn-primary">保存修改</button>
-        <a href="/qiming/post.php?id=<?= (int)$postId ?>" class="btn btn-secondary">取消</a>
+        <a href="<?= postUrl($postId) ?>" class="btn btn-secondary">取消</a>
     </form>
 </main>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="/assets/js/markdown-editor.js"></script>
 <?php include __DIR__ . '/../includes/footer.php'; ?>

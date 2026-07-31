@@ -4,66 +4,91 @@ startSession();
 
 $user = getCurrentUser();
 if (!$user || !isAdmin($user)) {
-    http_response_code(403);
-    die('权限不足');
+    renderErrorPage('权限不足', '需要管理员权限才能访问此页面。', 403);
 }
 
 $db = Database::getInstance();
-$action = $_GET['action'] ?? 'list';
-$tab = $_GET['tab'] ?? 'all';
 
-// 处理认证审核
-if ($action === 'verify' && isset($_GET['id'])) {
-    $targetId = (int)$_GET['id'];
-    $status = $_GET['status'] ?? 1; // 1=通过, 2=拒绝
-
-    $stmt = $db->prepare('UPDATE users SET verified = ? WHERE id = ?');
-    $stmt->execute([$status, $targetId]);
-    logAdminAction($user['id'], 'verify_user', $targetId, "状态: $status");
-    addNotification($targetId, 'verify', '您的身份认证已' . ($status == 1 ? '通过' : '被拒绝'));
-    header('Location: users.php?tab=pending');
-    exit;
-}
-
-// 处理禁言
-if ($action === 'mute' && isset($_GET['id'])) {
-    $targetId = (int)$_GET['id'];
-    $value = $_GET['value'] ?? 1;
-    $stmt = $db->prepare('UPDATE users SET is_muted = ? WHERE id = ?');
-    $stmt->execute([$value, $targetId]);
-    logAdminAction($user['id'], 'mute_user', $targetId, "禁言: $value");
-    addNotification($targetId, 'system', $value == 1 ? '您已被管理员禁言' : '您的禁言已被解除');
-    header('Location: users.php?tab=' . urlencode($tab));
-    exit;
-}
-
-// 处理封号
-if ($action === 'ban' && isset($_GET['id'])) {
-    $targetId = (int)$_GET['id'];
-    $value = $_GET['value'] ?? 1;
-    $stmt = $db->prepare('UPDATE users SET is_banned = ? WHERE id = ?');
-    $stmt->execute([$value, $targetId]);
-    logAdminAction($user['id'], 'ban_user', $targetId, "封号: $value");
-    addNotification($targetId, 'system', $value == 1 ? '您已被管理员封号' : '您的账号已被解封');
-    header('Location: users.php?tab=' . urlencode($tab));
-    exit;
-}
-
-// 处理V认证设置
-if ($action === 'vip' && isset($_GET['id'])) {
-    $targetId = (int)$_GET['id'];
-    $level = $_GET['level'] ?? 'none';
-    if (!in_array($level, ['none', 'blue', 'yellow', 'red'], true)) {
-        $level = 'none';
+// 处理 POST 写操作
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verifyCsrf($_POST['csrf_token'] ?? '')) {
+        csrfFail();
     }
-    $stmt = $db->prepare('UPDATE users SET vip_level = ? WHERE id = ?');
-    $stmt->execute([$level, $targetId]);
-    logAdminAction($user['id'], 'set_vip', $targetId, "等级: $level");
-    $levelText = ['none' => '已取消', 'blue' => '蓝V', 'yellow' => '黄V', 'red' => '红V'];
-    addNotification($targetId, 'system', '您的V认证已更新为' . ($levelText[$level] ?? '已取消'));
-    header('Location: users.php?tab=' . urlencode($tab));
+    $action = $_POST['action'] ?? '';
+    $targetId = (int)($_POST['id'] ?? 0);
+    $tab = $_POST['tab'] ?? 'all';
+    $redirectTab = in_array($tab, ['all', 'pending', 'verified', 'banned'], true) ? $tab : 'all';
+
+    if ($targetId > 0) {
+        // 认证审核
+        if ($action === 'verify') {
+            $status = (int)($_POST['status'] ?? 0);
+            if (!in_array($status, [1, 2], true)) {
+                $status = 1;
+            }
+            // 检查目标用户是否提交过 physics_username
+            $check = $db->prepare('SELECT physics_username FROM users WHERE id = ?');
+            $check->execute([$targetId]);
+            $target = $check->fetch();
+            if ($target && !empty($target['physics_username'])) {
+                $stmt = $db->prepare('UPDATE users SET verified = ? WHERE id = ?');
+                $stmt->execute([$status, $targetId]);
+                logAdminAction($user['id'], 'verify_user', $targetId, "状态: $status");
+                addNotification($targetId, 'verify', '您的身份认证已' . ($status == 1 ? '通过' : '被拒绝'));
+            }
+            header('Location: users.php?tab=' . urlencode($redirectTab));
+            exit;
+        }
+
+        // 禁言
+        if ($action === 'mute') {
+            $value = (int)($_POST['value'] ?? 1);
+            if (!in_array($value, [0, 1], true)) {
+                $value = 1;
+            }
+            $stmt = $db->prepare('UPDATE users SET is_muted = ? WHERE id = ?');
+            $stmt->execute([$value, $targetId]);
+            logAdminAction($user['id'], 'mute_user', $targetId, "禁言: $value");
+            addNotification($targetId, 'system', $value == 1 ? '您已被管理员禁言' : '您的禁言已被解除');
+            header('Location: users.php?tab=' . urlencode($redirectTab));
+            exit;
+        }
+
+        // 封号
+        if ($action === 'ban') {
+            $value = (int)($_POST['value'] ?? 1);
+            if (!in_array($value, [0, 1], true)) {
+                $value = 1;
+            }
+            $stmt = $db->prepare('UPDATE users SET is_banned = ? WHERE id = ?');
+            $stmt->execute([$value, $targetId]);
+            logAdminAction($user['id'], 'ban_user', $targetId, "封号: $value");
+            addNotification($targetId, 'system', $value == 1 ? '您已被管理员封号' : '您的账号已被解封');
+            header('Location: users.php?tab=' . urlencode($redirectTab));
+            exit;
+        }
+
+        // V认证设置
+        if ($action === 'vip') {
+            $level = $_POST['level'] ?? 'none';
+            if (!in_array($level, ['none', 'blue', 'yellow', 'red'], true)) {
+                $level = 'none';
+            }
+            $stmt = $db->prepare('UPDATE users SET vip_level = ? WHERE id = ?');
+            $stmt->execute([$level, $targetId]);
+            logAdminAction($user['id'], 'set_vip', $targetId, "等级: $level");
+            $levelText = ['none' => '已取消', 'blue' => '蓝V', 'yellow' => '黄V', 'red' => '红V'];
+            addNotification($targetId, 'system', '您的V认证已更新为' . ($levelText[$level] ?? '已取消'));
+            header('Location: users.php?tab=' . urlencode($redirectTab));
+            exit;
+        }
+    }
+
+    header('Location: users.php?tab=' . urlencode($redirectTab));
     exit;
 }
+
+$tab = $_GET['tab'] ?? 'all';
 
 // 获取用户列表
 $sql = 'SELECT * FROM users';
@@ -83,6 +108,20 @@ $users = $stmt->fetchAll();
 $pageTitle = '用户管理';
 $useAdminCss = true;
 include __DIR__ . '/../includes/header.php';
+
+// 渲染单个 POST 操作按钮的辅助函数
+function adminUserBtn($u, $tab, $action, $label, $class, $extraHidden = []) {
+    $html = '<form method="POST" action="users.php" style="display:inline-block;margin:2px">';
+    $html .= csrfField();
+    $html .= '<input type="hidden" name="id" value="' . (int)$u['id'] . '">';
+    $html .= '<input type="hidden" name="tab" value="' . escapeHtml($tab) . '">';
+    foreach ($extraHidden as $name => $val) {
+        $html .= '<input type="hidden" name="' . escapeHtml($name) . '" value="' . escapeHtml($val) . '">';
+    }
+    $html .= '<button type="submit" name="action" value="' . escapeHtml($action) . '" class="btn-sm ' . escapeHtml($class) . '">' . escapeHtml($label) . '</button>';
+    $html .= '</form>';
+    return $html;
+}
 ?>
 <main class="container">
     <div class="admin-layout">
@@ -151,28 +190,28 @@ include __DIR__ . '/../includes/header.php';
                         </td>
                         <td>
                             <?php if ($u['verified'] == 0 && !empty($u['physics_username'])): ?>
-                                <a href="?action=verify&id=<?= (int)$u['id'] ?>&status=1" class="btn-sm success">通过</a>
-                                <a href="?action=verify&id=<?= (int)$u['id'] ?>&status=2" class="btn-sm danger">拒绝</a>
+                                <?= adminUserBtn($u, $tab, 'verify', '通过', 'success', ['status' => 1]) ?>
+                                <?= adminUserBtn($u, $tab, 'verify', '拒绝', 'danger', ['status' => 2]) ?>
                             <?php endif; ?>
                             <?php if (!$u['is_muted']): ?>
-                                <a href="?action=mute&id=<?= (int)$u['id'] ?>&value=1&tab=<?= urlencode($tab) ?>" class="btn-sm warning">禁言</a>
+                                <?= adminUserBtn($u, $tab, 'mute', '禁言', 'warning', ['value' => 1]) ?>
                             <?php else: ?>
-                                <a href="?action=mute&id=<?= (int)$u['id'] ?>&value=0&tab=<?= urlencode($tab) ?>" class="btn-sm secondary">解除禁言</a>
+                                <?= adminUserBtn($u, $tab, 'mute', '解除禁言', 'secondary', ['value' => 0]) ?>
                             <?php endif; ?>
                             <?php if (!$u['is_banned']): ?>
-                                <a href="?action=ban&id=<?= (int)$u['id'] ?>&value=1&tab=<?= urlencode($tab) ?>" class="btn-sm danger">封号</a>
+                                <?= adminUserBtn($u, $tab, 'ban', '封号', 'danger', ['value' => 1]) ?>
                             <?php else: ?>
-                                <a href="?action=ban&id=<?= (int)$u['id'] ?>&value=0&tab=<?= urlencode($tab) ?>" class="btn-sm secondary">解封</a>
+                                <?= adminUserBtn($u, $tab, 'ban', '解封', 'secondary', ['value' => 0]) ?>
                             <?php endif; ?>
-                            <a href="?action=vip&id=<?= (int)$u['id'] ?>&level=red&tab=<?= urlencode($tab) ?>" class="btn-sm danger">红V</a>
-                            <a href="?action=vip&id=<?= (int)$u['id'] ?>&level=yellow&tab=<?= urlencode($tab) ?>" class="btn-sm warning">黄V</a>
-                            <a href="?action=vip&id=<?= (int)$u['id'] ?>&level=blue&tab=<?= urlencode($tab) ?>" class="btn-sm" style="background:var(--color-primary);color:#fff">蓝V</a>
-                            <a href="?action=vip&id=<?= (int)$u['id'] ?>&level=none&tab=<?= urlencode($tab) ?>" class="btn-sm secondary">取消V</a>
+                            <?= adminUserBtn($u, $tab, 'vip', '红V', 'danger', ['level' => 'red']) ?>
+                            <?= adminUserBtn($u, $tab, 'vip', '黄V', 'warning', ['level' => 'yellow']) ?>
+                            <?= adminUserBtn($u, $tab, 'vip', '蓝V', 'primary', ['level' => 'blue']) ?>
+                            <?= adminUserBtn($u, $tab, 'vip', '取消V', 'secondary', ['level' => 'none']) ?>
                         </td>
                     </tr>
                     <?php endforeach; ?>
                     <?php if (empty($users)): ?>
-                    <tr><td colspan="6" style="text-align:center;color:var(--color-text-secondary)">暂无用户</td></tr>
+                    <tr><td colspan="6" class="empty-tip">暂无用户</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>

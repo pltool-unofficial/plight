@@ -21,8 +21,8 @@ $stmt = $db->prepare('SELECT * FROM notifications WHERE user_id = ? ORDER BY cre
 $stmt->execute([$user['id']]);
 $notifications = $stmt->fetchAll();
 
-// 进入页面后将未读标记为已读
-$stmt = $db->prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0');
+// 进入页面后将未读标记为已读（仅标记当前显示的100条，避免大批量更新）
+$stmt = $db->prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0 LIMIT 100');
 $stmt->execute([$user['id']]);
 
 // 通知类型文案映射

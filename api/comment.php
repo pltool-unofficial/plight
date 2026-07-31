@@ -63,6 +63,10 @@ if ($content === '') {
     echo json_encode(['success' => false, 'message' => '评论内容不能为空']);
     exit;
 }
+if (mb_strlen($content) > 5000) {
+    echo json_encode(['success' => false, 'message' => '评论内容不能超过5000个字符']);
+    exit;
+}
 
 $db = Database::getInstance();
 
@@ -92,19 +96,26 @@ if ($parentId !== null) {
 
 $contentHtml = renderMarkdown($content);
 
-$stmt = $db->prepare('INSERT INTO comments (post_id, user_id, parent_id, content, content_html) VALUES (?, ?, ?, ?, ?)');
-if (!$stmt->execute([$postId, $currentUser['id'], $parentId, $content, $contentHtml])) {
+// M11/M12: 事务包裹 INSERT 评论 + UPDATE comment_count，异常回滚并返回 JSON
+try {
+    $db->beginTransaction();
+    $stmt = $db->prepare('INSERT INTO comments (post_id, user_id, parent_id, content, content_html) VALUES (?, ?, ?, ?, ?)');
+    $stmt->execute([$postId, $currentUser['id'], $parentId, $content, $contentHtml]);
+    $commentId = $db->lastInsertId();
+    $stmt = $db->prepare('UPDATE posts SET comment_count = comment_count + 1 WHERE id = ?');
+    $stmt->execute([$postId]);
+    $db->commit();
+} catch (PDOException $e) {
+    if ($db->getPDO()->inTransaction()) {
+        $db->rollBack();
+    }
+    error_log('评论失败: ' . $e->getMessage());
     echo json_encode(['success' => false, 'message' => '评论失败，请重试']);
     exit;
 }
 
-$commentId = $db->lastInsertId();
-
-$stmt = $db->prepare('UPDATE posts SET comment_count = comment_count + 1 WHERE id = ?');
-$stmt->execute([$postId]);
-
 if ($parentId !== null && $parentUserId !== null && $parentUserId != $currentUser['id']) {
-    $link = '/qiming/post.php?id=' . $postId . '#comment-' . $commentId;
+    $link = postUrl($postId) . '#comment-' . $commentId;
     $notifContent = $currentUser['username'] . ' 回复了你的评论';
     addNotification($parentUserId, 'reply', $notifContent, $link);
 }

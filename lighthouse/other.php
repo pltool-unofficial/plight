@@ -4,8 +4,20 @@ $pageTitle = '其他 - 灯塔';
 include __DIR__ . '/../includes/header.php';
 
 $db = Database::getInstance();
-$stmt = $db->prepare("SELECT p.*, u.username, u.vip_level FROM posts p JOIN users u ON p.user_id = u.id WHERE p.section = ? AND (p.category IS NULL OR p.category NOT IN ('基础教程','进阶教程','公告','新闻')) ORDER BY p.is_pinned DESC, p.created_at DESC LIMIT 20");
-$stmt->execute(['lighthouse']);
+$page = max(1, (int)($_GET['page'] ?? 1));
+$perPage = POSTS_PER_PAGE;
+$offset = ($page - 1) * $perPage;
+
+$total = $db->prepare("SELECT COUNT(*) FROM posts WHERE section = ? AND (category IS NULL OR category NOT IN ('基础教程','进阶教程','公告','新闻'))");
+$total->execute(['lighthouse']);
+$totalPosts = $total->fetchColumn();
+$totalPages = ceil($totalPosts / $perPage);
+
+$stmt = $db->prepare("SELECT p.*, u.username, u.vip_level FROM posts p JOIN users u ON p.user_id = u.id WHERE p.section = ? AND (p.category IS NULL OR p.category NOT IN ('基础教程','进阶教程','公告','新闻')) ORDER BY p.is_pinned DESC, p.created_at DESC LIMIT ? OFFSET ?");
+$stmt->bindValue(1, 'lighthouse');
+$stmt->bindValue(2, $perPage, PDO::PARAM_INT);
+$stmt->bindValue(3, $offset, PDO::PARAM_INT);
+$stmt->execute();
 $posts = $stmt->fetchAll();
 ?>
 <main class="container">
@@ -24,11 +36,12 @@ $posts = $stmt->fetchAll();
                 <?php foreach ($posts as $post): ?>
                     <li class="post-list-item">
                         <?php if ($post['is_pinned']): ?><span class="pin-tag">置顶</span><?php endif; ?>
-                        <a href="/qiming/post.php?id=<?= (int)$post['id'] ?>" class="post-list-title"><?= escapeHtml($post['title']) ?></a>
+                        <a href="<?= postUrl($post['id']) ?>" class="post-list-title"><?= escapeHtml($post['title']) ?></a>
                         <div class="post-list-meta">作者: <?= escapeHtml($post['username']) ?> <?= getVBadge($post['vip_level']) ?> · <?= timeAgo($post['created_at']) ?> · 评论 <?= (int)$post['comment_count'] ?> · 浏览 <?= (int)$post['view_count'] ?></div>
                     </li>
                 <?php endforeach; ?>
             </ul>
+            <?= buildPagination($page, $totalPages, '/lighthouse/other.php') ?>
         <?php endif; ?>
     </div>
 </main>

@@ -5,17 +5,14 @@ $currentUser = getCurrentUser();
 
 $db = Database::getInstance();
 
-// 获取最新公告（置顶优先，最多3条）
-$pinnedAnnouncements = getAnnouncements(['active_only' => true, 'limit' => 3]);
-
-// 获取各板块最新帖子/内容
-$postSections = [
+// 获取各板块最新帖子
+$sections = [
     'qiming' => '齐鸣',
     'lighthouse' => '灯塔',
     'wenxuan' => '文轩'
 ];
 $latestPosts = [];
-foreach ($postSections as $key => $name) {
+foreach ($sections as $key => $name) {
     $stmt = $db->prepare(
         'SELECT p.*, u.username, u.avatar, u.vip_level
          FROM posts p JOIN users u ON p.user_id = u.id
@@ -26,32 +23,53 @@ foreach ($postSections as $key => $name) {
     $latestPosts[$key] = $stmt->fetchAll();
 }
 
-// 首页展示的板块（含非帖子类板块）
-$sections = [
-    ['key' => 'qiming', 'name' => '齐鸣', 'type' => 'posts'],
-    ['key' => 'lighthouse', 'name' => '灯塔', 'type' => 'posts'],
-    ['key' => 'wenxuan', 'name' => '文轩', 'type' => 'posts'],
-    ['key' => 'baoxia', 'name' => '宝匣', 'type' => 'custom', 'link' => '/baoxia/index.php', 'items' => [
-        ['title' => 'PL在线工具', 'url' => '/baoxia/tools.php', 'meta' => '常用物理单位换算、公式速查等'],
-        ['title' => '资源下载', 'url' => '/baoxia/index.php', 'meta' => '工具与资料收录'],
-    ]],
-    ['key' => 'shiji', 'name' => '史记', 'type' => 'custom', 'link' => '/shiji/index.php', 'items' => [
-        ['title' => '人物记录', 'url' => '/shiji/index.php', 'meta' => '社区人物与贡献者档案'],
-    ]],
-];
-
 // 统计数据
 $totalUsers = $db->query('SELECT COUNT(*) FROM users')->fetchColumn();
 $totalPosts = $db->query('SELECT COUNT(*) FROM posts')->fetchColumn();
 $pageTitle = '首页';
-
 include __DIR__ . '/includes/header.php';
+?>
+<main class="container home">
+    <section class="hero">
+        <h1>欢迎来到 <?= SITE_NAME ?></h1>
+        <p class="hero-sub">物理实验爱好者的交流社区</p>
+        <div class="hero-stats">
+            <span class="stat"><strong><?= $totalUsers ?></strong> 用户</span>
+            <span class="stat"><strong><?= $totalPosts ?></strong> 帖子</span>
+        </div>
+        <?php if (!$currentUser): ?>
+            <a href="/user/register.php" class="btn btn-primary">立即加入</a>
+        <?php elseif (canPostInQiming($currentUser)): ?>
+            <a href="/qiming/create.php" class="btn btn-primary">发布帖子</a>
+        <?php endif; ?>
+    </section>
 
-// 根据设备类型加载对应模板
-if (isMobile()) {
-    include __DIR__ . '/includes/home-mobile.php';
-} else {
-    include __DIR__ . '/includes/home-desktop.php';
-}
-
-include __DIR__ . '/includes/footer.php';
+    <div class="home-grid">
+        <?php foreach ($sections as $key => $name): ?>
+            <section class="home-section">
+                <div class="home-section-head">
+                    <h2><?= $name ?></h2>
+                    <a href="/<?= $key ?>/index.php" class="more-link">更多 →</a>
+                </div>
+                <?php if (!empty($latestPosts[$key])): ?>
+                    <ul class="post-list">
+                        <?php foreach ($latestPosts[$key] as $post): ?>
+                            <li class="post-list-item">
+                                <?php if ($post['is_pinned']): ?><span class="pin-tag">置顶</span><?php endif; ?>
+                                <a href="<?= postUrl($post['id']) ?>" class="post-list-title">
+                                    <?= escapeHtml($post['title']) ?>
+                                </a>
+                                <span class="post-list-meta">
+                                    <?= escapeHtml($post['username']) ?> · <?= timeAgo($post['created_at']) ?> · <?= (int)$post['comment_count'] ?>评
+                                </span>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php else: ?>
+                    <p class="empty-tip">暂无内容</p>
+                <?php endif; ?>
+            </section>
+        <?php endforeach; ?>
+    </div>
+</main>
+<?php include __DIR__ . '/includes/footer.php'; ?>

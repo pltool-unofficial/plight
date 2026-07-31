@@ -6,7 +6,7 @@ class MarkdownEditor {
     constructor(textareaId, previewId, options = {}) {
         this.textarea = document.getElementById(textareaId);
         this.preview = document.getElementById(previewId);
-        this.toolbar = options.toolbar || true;
+        this.toolbar = options.toolbar !== false;
         this.autoPreview = options.autoPreview !== false;
 
         this.initToolbar();
@@ -85,13 +85,16 @@ class MarkdownEditor {
     }
 
     initEvents() {
+        // L15: input 事件加 debounce(300ms)
+        let debounceTimer = null;
         this.textarea.addEventListener('input', () => {
             if (this.autoPreview) {
-                this.updatePreview();
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => this.updatePreview(), 300);
             }
         });
 
-        // Tab键支持
+        // Tab键支持 + Escape退出全屏
         this.textarea.addEventListener('keydown', (e) => {
             if (e.key === 'Tab') {
                 e.preventDefault();
@@ -100,13 +103,19 @@ class MarkdownEditor {
                     this.textarea.value.substring(0, start) + '  ' +
                     this.textarea.value.substring(start);
                 this.textarea.setSelectionRange(start + 2, start + 2);
+            } else if (e.key === 'Escape') {
+                const container = this.textarea.closest('.md-editor');
+                if (container && container.classList.contains('fullscreen')) {
+                    container.classList.remove('fullscreen');
+                    e.preventDefault();
+                }
             }
         });
     }
 
     updatePreview() {
         const content = this.textarea.value;
-        // 调用后端API渲染Markdown
+        // L17: 仅使用后端 API 渲染，失败时显示原始文本
         fetch('/api/markdown-preview.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -119,17 +128,17 @@ class MarkdownEditor {
             }
         })
         .catch(() => {
-            // 降级方案：使用前端marked.js
-            if (typeof marked !== 'undefined' && this.preview) {
-                this.preview.innerHTML = marked.parse(content);
+            if (this.preview) {
+                this.preview.textContent = content;
             }
         });
     }
 
     togglePreview() {
         if (this.preview) {
+            // L16: 初始 display 为 ''，用 !== 'block' 判断确保首次点击生效
             this.preview.style.display =
-                this.preview.style.display === 'none' ? 'block' : 'none';
+                this.preview.style.display !== 'block' ? 'block' : 'none';
         }
     }
 

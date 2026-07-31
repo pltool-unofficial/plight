@@ -16,14 +16,13 @@ $cards = [
 ];
 ?>
 <main class="container">
-    <div class="portal-page-header">
-        <h1>📚 文轩</h1>
-        <p>学术与人文交汇之所，汇聚前沿、论文与随笔。</p>
-    </div>
-
-    <div class="section-toolbar" style="justify-content:flex-end;margin-bottom:20px;">
+    <div class="home-section-head">
+        <div>
+            <h1 class="page-title" style="margin:0 0 4px;">文轩</h1>
+            <p class="post-meta">学术与人文交汇之所,汇聚前沿、论文与随笔。</p>
+        </div>
         <?php if (canPostInWenxuan($currentUser)): ?>
-            <a href="/qiming/create.php?section=wenxuan" class="btn btn-primary">发布文轩帖</a>
+            <a href="/qiming/create.php?section=wenxuan" class="btn btn-sm btn-primary">发布文轩帖</a>
         <?php endif; ?>
     </div>
 
@@ -45,7 +44,7 @@ $cards = [
                 <?php foreach ($posts as $post): ?>
                     <li class="post-list-item">
                         <?php if ($post['is_pinned']): ?><span class="pin-tag">置顶</span><?php endif; ?>
-                        <a href="/qiming/post.php?id=<?= (int)$post['id'] ?>" class="post-list-title"><?= escapeHtml($post['title']) ?></a>
+                        <a href="<?= postUrl($post['id']) ?>" class="post-list-title"><?= escapeHtml($post['title']) ?></a>
                         <div class="post-list-meta">作者: <?= escapeHtml($post['username']) ?> <?= getVBadge($post['vip_level']) ?> · <?= timeAgo($post['created_at']) ?> · 评论 <?= (int)$post['comment_count'] ?> · 浏览 <?= (int)$post['view_count'] ?></div>
                     </li>
                 <?php endforeach; ?>

@@ -4,8 +4,7 @@ startSession();
 
 $user = getCurrentUser();
 if (!$user || !isAdmin($user)) {
-    http_response_code(403);
-    die('权限不足');
+    renderErrorPage('权限不足', '需要管理员权限才能访问此页面。', 403);
 }
 
 $db = Database::getInstance();
@@ -80,7 +79,7 @@ include __DIR__ . '/../includes/header.php';
                         </tr>
                     </tbody>
                 </table>
-                <p style="margin-top:12px;color:var(--color-text-secondary);font-size:13px">以上参数当前为只读展示，修改请编辑 <code>config/config.php</code>。</p>
+                <p class="admin-hint">以上参数当前为只读展示，修改请编辑 <code>config/config.php</code>。</p>
             </form>
         </div>
     </div>

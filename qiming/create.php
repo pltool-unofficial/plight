@@ -20,8 +20,7 @@ $canPost = ($section === 'qiming') ? canPostInQiming($user)
          : (($section === 'lighthouse') ? canPostInLighthouse($user)
          : canPostInWenxuan($user));
 if (!$canPost) {
-    http_response_code(403);
-    die('当前账号无权在此板块发帖');
+    renderErrorPage('无权发帖', '当前账号无权在此板块发帖。', 403);
 }
 
 // 各板块可用分类
@@ -39,7 +38,7 @@ $content = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verifyCsrf($_POST['csrf_token'] ?? '')) {
-        die('CSRF验证失败');
+        csrfFail();
     }
 
     // 表单提交的 section 必须与进入时一致
@@ -48,6 +47,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $postSection = 'qiming';
     }
     $section = $postSection;
+
+    // C3: 重新校验发帖权限，防止绕过
+    if (!canPostInSection($user, $section)) {
+        http_response_code(403);
+        die('当前账号无权在此板块发帖');
+    }
 
     $title = sanitizeInput($_POST['title'] ?? '');
     $content = $_POST['content'] ?? '';
@@ -58,6 +63,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($title) || mb_strlen($title) < 3) {
         $error = '标题至少3个字符';
+    } elseif (mb_strlen($title) > 200) {
+        $error = '标题不能超过200个字符';
     } elseif (empty($content) || mb_strlen($content) < 10) {
         $error = '内容至少10个字符';
     } else {
@@ -66,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $db->prepare('INSERT INTO posts (user_id, section, category, title, content, content_html) VALUES (?, ?, ?, ?, ?, ?)');
         if ($stmt->execute([$user['id'], $section, $category, $title, $content, $html])) {
             $postId = $db->lastInsertId();
-            header('Location: post.php?id=' . $postId);
+            header('Location: ' . postUrl($postId));
             exit;
         }
         $error = '发布失败，请重试';
@@ -78,14 +85,11 @@ $useMarkdown = true;
 include __DIR__ . '/../includes/header.php';
 ?>
 <main class="container">
-    <div class="portal-page-header">
-        <h1>✍️ 发布新帖子</h1>
-        <p>在 <?= escapeHtml($section === 'qiming' ? '齐鸣' : ($section === 'lighthouse' ? '灯塔' : '文轩')) ?> 板块分享你的观点与内容。</p>
-    </div>
+    <h1>发布新帖子</h1>
     <?php if ($error): ?>
         <div class="alert error"><?= escapeHtml($error) ?></div>
     <?php endif; ?>
-    <form method="POST" class="form portal-card">
+    <form method="POST" class="form">
         <?= csrfField() ?>
         <input type="hidden" name="section" value="<?= escapeHtml($section) ?>">
         <div class="form-group">
@@ -111,6 +115,5 @@ include __DIR__ . '/../includes/header.php';
         <a href="/qiming/index.php" class="btn btn-secondary">取消</a>
     </form>
 </main>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="/assets/js/markdown-editor.js"></script>
 <?php include __DIR__ . '/../includes/footer.php'; ?>

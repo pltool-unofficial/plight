@@ -15,12 +15,7 @@ $stmt->execute([$userId]);
 $user = $stmt->fetch();
 
 if (!$user) {
-    http_response_code(404);
-    $pageTitle = '用户不存在';
-    include __DIR__ . '/../includes/header.php';
-    echo '<main class="container"><div class="alert error">用户不存在</div><p><a href="/index.php">返回首页</a></p></main>';
-    include __DIR__ . '/../includes/footer.php';
-    exit;
+    renderErrorPage('用户不存在', '该用户不存在或已注销。', 404);
 }
 
 // 获取用户帖子总数
@@ -86,7 +81,7 @@ include __DIR__ . '/../includes/header.php';
                     <li class="post-card">
                         <h3>
                             <?php if ($post['is_pinned']): ?><span class="pin-tag">置顶</span><?php endif; ?>
-                            <a href="/<?= escapeHtml($post['section']) ?>/post.php?id=<?= (int)$post['id'] ?>"><?= escapeHtml($post['title']) ?></a>
+                            <a href="<?= postUrl($post['id']) ?>"><?= escapeHtml($post['title']) ?></a>
                         </h3>
                         <p class="post-excerpt"><?= escapeHtml(mb_substr(strip_tags($post['content_html']), 0, 150, 'UTF-8')) ?><?= mb_strlen(strip_tags($post['content_html']), 'UTF-8') > 150 ? '...' : '' ?></p>
                         <span class="post-meta">

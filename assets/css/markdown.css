@@ -1,14 +1,13 @@
-/* ============ Markdown Rendering Styles ============ */
+/* ========== Markdown Render (Apple Style) ========== */
 .md-preview,
 .post-content,
 .markdown-body {
     color: var(--color-text);
-    line-height: 1.8;
+    line-height: 1.7;
     word-wrap: break-word;
-    font-size: 15px;
+    font-size: 16px;
 }
 
-/* Headings */
 .md-preview h1, .post-content h1, .markdown-body h1,
 .md-preview h2, .post-content h2, .markdown-body h2,
 .md-preview h3, .post-content h3, .markdown-body h3,
@@ -16,280 +15,94 @@
 .md-preview h5, .post-content h5, .markdown-body h5,
 .md-preview h6, .post-content h6, .markdown-body h6 {
     margin: 1.5em 0 0.6em;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.3;
+    letter-spacing: -0.02em;
     color: var(--color-text);
 }
 
-.md-preview h1, .post-content h1, .markdown-body h1 {
-    font-size: 28px;
-    padding-bottom: 0.4em;
-    border-bottom: 2px solid var(--color-border-light);
-    letter-spacing: -0.02em;
-}
+.md-preview h1, .post-content h1, .markdown-body h1 { font-size: 1.8em; padding-bottom: 0.3em; border-bottom: 1px solid var(--color-divider); }
+.md-preview h2, .post-content h2, .markdown-body h2 { font-size: 1.45em; padding-bottom: 0.3em; border-bottom: 1px solid var(--color-divider); }
+.md-preview h3, .post-content h3, .markdown-body h3 { font-size: 1.25em; }
+.md-preview h4, .post-content h4, .markdown-body h4 { font-size: 1.05em; }
 
-.md-preview h2, .post-content h2, .markdown-body h2 {
-    font-size: 24px;
-    padding-bottom: 0.3em;
-    border-bottom: 1px solid var(--color-border-light);
-    letter-spacing: -0.01em;
-}
+.md-preview p, .post-content p, .markdown-body p { margin: 0.9em 0; }
 
-.md-preview h3, .post-content h3, .markdown-body h3 {
-    font-size: 20px;
-}
+.md-preview a, .post-content a, .markdown-body a { color: var(--color-primary); text-decoration: none; }
+.md-preview a:hover, .post-content a:hover, .markdown-body a:hover { text-decoration: underline; }
 
-.md-preview h4, .post-content h4, .markdown-body h4 {
-    font-size: 17px;
-}
-
-.md-preview h5, .post-content h5, .markdown-body h5 {
-    font-size: 15px;
-}
-
-.md-preview h6, .post-content h6, .markdown-body h6 {
-    font-size: 13px;
-    color: var(--color-text-secondary);
-}
-
-/* Paragraphs */
-.md-preview p, .post-content p, .markdown-body p {
-    margin: 1em 0;
-    line-height: 1.8;
-}
-
-/* Links */
-.md-preview a, .post-content a, .markdown-body a {
-    color: var(--color-primary);
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
-    transition: all var(--transition-fast);
-    font-weight: 500;
-}
-
-.md-preview a:hover, .post-content a:hover, .markdown-body a:hover {
-    border-bottom-color: var(--color-primary);
-    text-decoration: none;
-}
-
-/* Lists */
 .md-preview ul, .post-content ul, .markdown-body ul,
 .md-preview ol, .post-content ol, .markdown-body ol {
-    margin: 1em 0;
+    margin: 0.9em 0;
     padding-left: 1.8em;
 }
+.md-preview li, .post-content li, .markdown-body li { margin: 0.4em 0; }
 
-.md-preview li, .post-content li, .markdown-body li {
-    margin: 0.4em 0;
-    line-height: 1.7;
-}
-
-.md-preview ul li::marker,
-.post-content ul li::marker,
-.markdown-body ul li::marker {
-    color: var(--color-primary);
-}
-
-/* Blockquotes */
 .md-preview blockquote, .post-content blockquote, .markdown-body blockquote {
-    border-left: 4px solid var(--color-primary);
-    background: var(--color-primary-light);
-    padding: 14px 20px;
+    border-left: 3px solid var(--color-primary);
+    background: #fafafa;
+    padding: 12px 18px;
     margin: 1.2em 0;
     color: var(--color-text-secondary);
-    border-radius: 0 var(--radius-md) var(--radius-md) 0;
-    line-height: 1.7;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
-.md-preview blockquote p,
-.post-content blockquote p,
-.markdown-body blockquote p {
-    margin: 0.5em 0;
-}
-
-/* Code Blocks */
 .md-preview pre, .post-content pre, .markdown-body pre {
-    background: #1e293b;
-    padding: 20px 24px;
-    border-radius: var(--radius-md);
+    background: #1d1d1f;
+    color: #f5f5f7;
+    padding: 16px 20px;
+    border-radius: var(--radius);
     overflow-x: auto;
     margin: 1.2em 0;
     font-size: 13px;
     line-height: 1.6;
-    box-shadow: var(--shadow-sm);
-    position: relative;
 }
 
-.md-preview pre::before,
-.post-content pre::before,
-.markdown-body pre::before {
-    content: 'Code';
-    position: absolute;
-    top: 8px;
-    right: 12px;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.4);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: 600;
+.md-preview code, .post-content code, .markdown-body code {
+    font-family: var(--font-mono);
+    background: rgba(0,0,0,0.05);
+    padding: 2px 6px;
+    border-radius: var(--radius-xs);
+    font-size: 0.88em;
 }
 
 .md-preview pre code, .post-content pre code, .markdown-body pre code {
     background: none;
     padding: 0;
     font-size: inherit;
-    color: #e2e8f0;
-    font-family: var(--font-mono);
+    color: inherit;
 }
 
-/* Inline Code */
-.md-preview :not(pre) > code,
-.post-content :not(pre) > code,
-.markdown-body :not(pre) > code {
-    font-family: var(--font-mono);
-    background: var(--color-bg-secondary);
-    padding: 2px 8px;
-    border-radius: var(--radius-sm);
-    font-size: 0.9em;
-    color: var(--color-primary);
-    font-weight: 500;
-}
-
-/* Images */
 .md-preview img, .post-content img, .markdown-body img {
     max-width: 100%;
-    border-radius: var(--radius-md);
-    margin: 1em 0;
-    box-shadow: var(--shadow-sm);
-    transition: box-shadow var(--transition-base);
+    border-radius: var(--radius);
+    margin: 0.8em 0;
 }
 
-.md-preview img:hover, .post-content img:hover, .markdown-body img:hover {
-    box-shadow: var(--shadow-md);
-}
-
-/* Horizontal Rule */
 .md-preview hr, .post-content hr, .markdown-body hr {
     border: none;
-    border-top: 2px solid var(--color-border-light);
-    margin: 2em 0;
+    border-top: 1px solid var(--color-divider);
+    margin: 1.8em 0;
 }
 
-/* Tables */
 .md-preview table, .post-content table, .markdown-body table {
     border-collapse: collapse;
     width: 100%;
-    margin: 1.5em 0;
-    border-radius: var(--radius-md);
+    margin: 1.2em 0;
+    border-radius: var(--radius);
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
 }
-
 .md-preview th, .post-content th, .markdown-body th,
 .md-preview td, .post-content td, .markdown-body td {
-    border: 1px solid var(--color-border);
-    padding: 12px 16px;
+    border: 1px solid var(--color-divider);
+    padding: 10px 14px;
     text-align: left;
-    font-size: 14px;
 }
-
 .md-preview th, .post-content th, .markdown-body th {
-    background: var(--color-bg-secondary);
+    background: #fafafa;
     font-weight: 600;
     color: var(--color-text);
 }
 
-.md-preview tr:nth-child(even) td,
-.post-content tr:nth-child(even) td,
-.markdown-body tr:nth-child(even) td {
-    background: var(--color-bg-secondary);
-}
-
-/* Task Lists */
-.md-preview .task-list-item,
-.post-content .task-list-item,
-.markdown-body .task-list-item {
-    list-style: none;
-    margin-left: -1.5em;
-}
-
-.md-preview .task-list-item input[type="checkbox"],
-.post-content .task-list-item input[type="checkbox"],
-.markdown-body .task-list-item input[type="checkbox"] {
-    margin-right: 8px;
-    accent-color: var(--color-primary);
-}
-
-/* Nested Content */
-.md-preview *:last-child,
-.post-content *:last-child,
-.markdown-body *:last-child {
-    margin-bottom: 0;
-}
-
-/* Inline Elements */
-.md-preview strong, .post-content strong, .markdown-body strong {
-    font-weight: 700;
-    color: var(--color-text);
-}
-
-.md-preview em, .post-content em, .markdown-body em {
-    font-style: italic;
-}
-
-.md-preview del, .post-content del, .markdown-body del {
-    text-decoration: line-through;
-    color: var(--color-text-muted);
-}
-
-/* Footnotes */
-.md-preview .footnote,
-.post-content .footnote,
-.markdown-body .footnote {
-    font-size: 0.85em;
-    color: var(--color-text-secondary);
-    border-top: 1px solid var(--color-border-light);
-    margin-top: 2em;
-    padding-top: 1em;
-}
-
-/* Code Syntax Highlighting (basic) */
-.md-preview .keyword, .post-content .keyword, .markdown-body .keyword {
-    color: #c084fc;
-}
-
-.md-preview .string, .post-content .string, .markdown-body .string {
-    color: #86efac;
-}
-
-.md-preview .comment, .post-content .comment, .markdown-body .comment {
-    color: #64748b;
-    font-style: italic;
-}
-
-.md-preview .number, .post-content .number, .markdown-body .number {
-    color: #fbbf24;
-}
-
-.md-preview .function, .post-content .function, .markdown-body .function {
-    color: #60a5fa;
-}
-
-/* Scrollbar for preview */
-.md-preview::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-
-.md-preview::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.md-preview::-webkit-scrollbar-thumb {
-    background: var(--color-border);
-    border-radius: var(--radius-full);
-}
-
-.md-preview::-webkit-scrollbar-thumb:hover {
-    background: var(--color-text-muted);
-}
+.md-preview strong, .post-content strong, .markdown-body strong { font-weight: 600; }
+.md-preview del, .post-content del, .markdown-body del { color: var(--color-text-tertiary); }

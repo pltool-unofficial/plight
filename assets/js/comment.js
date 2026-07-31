@@ -2,9 +2,6 @@
 (function () {
     'use strict';
 
-    var csrfToken = document.querySelector('meta[name="csrf-token"]');
-    csrfToken = csrfToken ? csrfToken.getAttribute('content') : '';
-
     // 展开回复表单
     document.querySelectorAll('.comment-reply-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
