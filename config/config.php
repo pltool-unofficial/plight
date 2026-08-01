@@ -7,8 +7,8 @@ define('SITE_EMAIL', 'noreply@plight.chenyinweb.cn');
 // 数据库配置 — 优先从环境变量读取，避免凭据写入源码
 define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
 define('DB_NAME', getenv('DB_NAME') ?: 'plight');
-define('DB_USER', getenv('DB_USER') ?: 'root');
-define('DB_PASS', getenv('DB_PASS') ?: '');
+define('DB_USER', getenv('DB_USER') ?: 'plight');
+define('DB_PASS', getenv('DB_PASS') ?: 'Fuckezezsb250wjsm');
 
 // 会话配置
 define('SESSION_LIFETIME', (int)(getenv('SESSION_LIFETIME') ?: 86400)); // 24小时

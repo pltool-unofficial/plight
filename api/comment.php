@@ -120,4 +120,11 @@ if ($parentId !== null && $parentUserId !== null && $parentUserId != $currentUse
     addNotification($parentUserId, 'reply', $notifContent, $link);
 }
 
+// 评论奖励：+1 金币（灯泡）+5 经验
+try {
+    addCoinsExp($currentUser['id'], 1, 5);
+} catch (Exception $e) {
+    // 奖励失败不影响评论
+}
+
 echo json_encode(['success' => true]);

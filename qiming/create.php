@@ -73,6 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $db->prepare('INSERT INTO posts (user_id, section, category, title, content, content_html) VALUES (?, ?, ?, ?, ?, ?)');
         if ($stmt->execute([$user['id'], $section, $category, $title, $content, $html])) {
             $postId = $db->lastInsertId();
+            // 发帖奖励：+2 金币（灯泡）+10 经验
+            addCoinsExp($user['id'], 2, 10);
             header('Location: ' . postUrl($postId));
             exit;
         }

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../includes/functions.php';
 startSession();
 
@@ -23,6 +23,8 @@ include __DIR__ . '/../includes/header.php';
                 <li><a href="index.php">首页</a></li>
                 <li><a href="users.php">用户管理</a></li>
                 <li><a href="posts.php">帖子管理</a></li>
+                <li><a href="messages.php">站内信</a></li>
+                <li><a href="medals.php">勋章管理</a></li>
                 <li><a href="settings.php" class="active">系统设置</a></li>
                 <li><a href="index.php#logs">操作日志</a></li>
             </ul>

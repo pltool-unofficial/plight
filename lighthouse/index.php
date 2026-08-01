@@ -1,10 +1,10 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../includes/functions.php';
 $pageTitle = '灯塔';
 include __DIR__ . '/../includes/header.php';
 
 $db = Database::getInstance();
-$stmt = $db->prepare('SELECT p.*, u.username, u.vip_level FROM posts p JOIN users u ON p.user_id = u.id WHERE p.section = ? ORDER BY p.is_pinned DESC, p.created_at DESC LIMIT 10');
+$stmt = $db->prepare('SELECT p.*, u.id AS author_id, u.username, u.verify_label FROM posts p JOIN users u ON p.user_id = u.id WHERE p.section = ? ORDER BY p.is_pinned DESC, p.created_at DESC LIMIT 10');
 $stmt->execute(['lighthouse']);
 $posts = $stmt->fetchAll();
 
@@ -46,7 +46,8 @@ $cards = [
                     <li class="post-list-item">
                         <?php if ($post['is_pinned']): ?><span class="pin-tag">置顶</span><?php endif; ?>
                         <a href="<?= postUrl($post['id']) ?>" class="post-list-title"><?= escapeHtml($post['title']) ?></a>
-                        <div class="post-list-meta">作者: <?= escapeHtml($post['username']) ?> <?= getVBadge($post['vip_level']) ?> · <?= timeAgo($post['created_at']) ?> · 评论 <?= (int)$post['comment_count'] ?> · 浏览 <?= (int)$post['view_count'] ?></div>
+                        <div class="post-list-meta">作者: <?= escapeHtml($post['username']) ?> <?= getVerifyBadge($post['verify_label']) ?>
+                            <?= renderMedalBadges((int)$post['author_id'], 'all') ?> · <?= timeAgo($post['created_at']) ?> · 评论 <?= (int)$post['comment_count'] ?> · 浏览 <?= (int)$post['view_count'] ?></div>
                     </li>
                 <?php endforeach; ?>
             </ul>

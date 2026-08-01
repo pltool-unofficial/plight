@@ -31,6 +31,7 @@ $typeLabels = [
     'like' => '点赞',
     'system' => '系统',
     'verify' => '认证',
+    'message' => '站内信',
 ];
 
 $pageTitle = '通知';

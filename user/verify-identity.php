@@ -19,8 +19,9 @@ if (!$user) {
 $error = '';
 $success = '';
 
-// 已认证用户禁止重复提交（verified==1），仅 verified==0 或 verified==2 或从未申请者可提交
-$canSubmit = !($user['verified'] == 1);
+// 物实账户一旦绑定即不可自行修改（绑定后需联系管理员变更）
+$physicsBound = !empty($user['physics_username']) || !empty($user['physics_id']);
+$canSubmit = !$physicsBound;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verifyCsrf($_POST['csrf_token'] ?? '')) {
@@ -28,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$canSubmit) {
-        $error = '您已认证，如需修改请联系管理员';
+        $error = '物实账户已绑定，不可自行修改；如需变更请联系管理员';
     } else {
         $physicsUsername = sanitizeInput($_POST['physics_username'] ?? '');
         $physicsId = sanitizeInput($_POST['physics_id'] ?? '');
@@ -95,7 +96,7 @@ include __DIR__ . '/../includes/header.php';
             <button type="submit" class="btn btn-primary">提交认证申请</button>
         </form>
         <?php else: ?>
-        <div class="alert info">您已认证，如需修改请联系管理员。</div>
+        <div class="alert info">物实账户已绑定，不可自行修改；如需变更请联系管理员。</div>
         <?php endif; ?>
     </div>
 </main>

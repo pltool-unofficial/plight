@@ -5,6 +5,7 @@ if (!function_exists('isLoggedIn')) {
 startSession();
 $currentUser = getCurrentUser();
 $unreadCount = $currentUser ? getUnreadCount($currentUser['id']) : 0;
+$unreadMsgCount = $currentUser ? getUnreadMessageCount($currentUser['id']) : 0;
 // 规范化路径用于导航高亮判断
 $currentScript = $_SERVER['SCRIPT_NAME'] ?? '';
 $currentPath = $_SERVER['REQUEST_URI'] ?? '';
@@ -45,9 +46,17 @@ function navActive($dir) {
             <a href="/baoxia/index.php" class="<?= navActive('baoxia') ?>">宝匣</a>
             <a href="/shiji/index.php" class="<?= navActive('shiji') ?>">史记</a>
             <a href="/qiming/index.php" class="<?= navActive('qiming') ?>">齐鸣</a>
+            <a href="/chat/index.php" class="<?= navActive('chat') ?>">闲谈</a>
+            <a href="/feedback/index.php" class="<?= navActive('feedback') ?>">反馈</a>
         </nav>
         <div class="header-user">
             <?php if ($currentUser): ?>
+                <a href="/user/messages.php" class="icon-btn" title="站内信" aria-label="站内信">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    <?php if ($unreadMsgCount > 0): ?>
+                        <span class="notif-badge"><?= $unreadMsgCount > 99 ? '99+' : $unreadMsgCount ?></span>
+                    <?php endif; ?>
+                </a>
                 <a href="/user/notifications.php" class="icon-btn" title="通知" aria-label="通知">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                     <?php if ($unreadCount > 0): ?>
@@ -58,6 +67,7 @@ function navActive($dir) {
                     <img src="<?= escapeHtml($currentUser['avatar'] ?? '/assets/images/default-avatar.svg') ?>" alt="头像" class="header-avatar" onerror="this.src='/assets/images/default-avatar.svg'">
                     <span><?= escapeHtml($currentUser['username']) ?></span>
                 </a>
+                <a href="/user/checkin.php" class="coin-chip" title="金币（灯泡）· 点击签到"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V17h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg> <span class="coin-num"><?= (int)($currentUser['coins'] ?? 0) ?></span></a>
                 <?php if (isAdmin($currentUser)): ?>
                     <a href="/admin/index.php" class="icon-btn" title="管理后台" aria-label="管理后台">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>

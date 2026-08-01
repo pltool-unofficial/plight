@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../includes/functions.php';
 startSession();
 
@@ -14,6 +14,9 @@ $totalUsers = $db->query('SELECT COUNT(*) FROM users')->fetchColumn();
 $totalPosts = $db->query('SELECT COUNT(*) FROM posts')->fetchColumn();
 $pendingUsers = $db->query("SELECT COUNT(*) FROM users WHERE verified = 0 AND physics_username IS NOT NULL")->fetchColumn();
 $bannedUsers = $db->query('SELECT COUNT(*) FROM users WHERE is_banned = 1')->fetchColumn();
+$openSuggestions = $db->query("SELECT COUNT(*) FROM suggestions WHERE status = 'open'")->fetchColumn();
+$totalMessages = $db->query('SELECT COUNT(*) FROM messages')->fetchColumn();
+$totalMedals = $db->query('SELECT COUNT(*) FROM medals')->fetchColumn();
 
 // 最近 10 条操作日志（JOIN users 取管理员用户名）
 $stmt = $db->prepare(
@@ -38,6 +41,8 @@ include __DIR__ . '/../includes/header.php';
                 <li><a href="index.php" class="active">首页</a></li>
                 <li><a href="users.php">用户管理</a></li>
                 <li><a href="posts.php">帖子管理</a></li>
+                <li><a href="messages.php">站内信</a></li>
+                <li><a href="medals.php">勋章管理</a></li>
                 <li><a href="settings.php">系统设置</a></li>
                 <li><a href="index.php#logs">操作日志</a></li>
             </ul>
@@ -60,6 +65,18 @@ include __DIR__ . '/../includes/header.php';
                 <div class="admin-stat-card">
                     <div class="stat-num"><?= (int)$bannedUsers ?></div>
                     <div class="stat-label">已封号用户数</div>
+                </div>
+                <div class="admin-stat-card">
+                    <div class="stat-num"><?= (int)$openSuggestions ?></div>
+                    <div class="stat-label">进行中建议</div>
+                </div>
+                <div class="admin-stat-card">
+                    <div class="stat-num"><?= (int)$totalMessages ?></div>
+                    <div class="stat-label">站内信总数</div>
+                </div>
+                <div class="admin-stat-card">
+                    <div class="stat-num"><?= (int)$totalMedals ?></div>
+                    <div class="stat-label">勋章总数</div>
                 </div>
             </div>
 

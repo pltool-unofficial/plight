@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../includes/functions.php';
 startSession();
 
@@ -68,17 +68,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // V认证设置
-        if ($action === 'vip') {
-            $level = $_POST['level'] ?? 'none';
-            if (!in_array($level, ['none', 'blue', 'yellow', 'red'], true)) {
-                $level = 'none';
+        // 自由认证标记设置（媒体平台式文字认证，精确到每个人）
+        if ($action === 'setlabel') {
+            $label = trim($_POST['label'] ?? '');
+            if (mb_strlen($label) > 50) {
+                $label = mb_substr($label, 0, 50);
             }
-            $stmt = $db->prepare('UPDATE users SET vip_level = ? WHERE id = ?');
-            $stmt->execute([$level, $targetId]);
-            logAdminAction($user['id'], 'set_vip', $targetId, "等级: $level");
-            $levelText = ['none' => '已取消', 'blue' => '蓝V', 'yellow' => '黄V', 'red' => '红V'];
-            addNotification($targetId, 'system', '您的V认证已更新为' . ($levelText[$level] ?? '已取消'));
+            $labelValue = $label === '' ? null : $label;
+            $stmt = $db->prepare('UPDATE users SET verify_label = ? WHERE id = ?');
+            $stmt->execute([$labelValue, $targetId]);
+            logAdminAction($user['id'], 'set_verify_label', $targetId, '标记: ' . ($labelValue === null ? '(清空)' : $label));
+            addNotification($targetId, 'verify', $labelValue === null ? '您的认证标记已被取消' : '您的认证标记已更新为：' . $label);
+            header('Location: users.php?tab=' . urlencode($redirectTab));
+            exit;
+        }
+
+        // 取消自由认证标记
+        if ($action === 'clearlabel') {
+            $stmt = $db->prepare('UPDATE users SET verify_label = NULL WHERE id = ?');
+            $stmt->execute([$targetId]);
+            logAdminAction($user['id'], 'clear_verify_label', $targetId);
+            addNotification($targetId, 'verify', '您的认证标记已被管理员取消');
+            header('Location: users.php?tab=' . urlencode($redirectTab));
+            exit;
+        }
+
+        // 调整金币（灯泡）
+        if ($action === 'coins') {
+            $amount = (int)($_POST['amount'] ?? 0);
+            $reason = sanitizeInput($_POST['reason'] ?? '');
+            if ($amount !== 0) {
+                adminAdjustCoins($user['id'], $targetId, $amount, $reason);
+            }
+            header('Location: users.php?tab=' . urlencode($redirectTab));
+            exit;
+        }
+
+        // 设置史记授权编辑
+        if ($action === 'editor') {
+            $value = (int)($_POST['value'] ?? 1);
+            if (!in_array($value, [0, 1], true)) {
+                $value = 1;
+            }
+            $stmt = $db->prepare('UPDATE users SET is_editor = ? WHERE id = ?');
+            $stmt->execute([$value, $targetId]);
+            logAdminAction($user['id'], 'set_editor', $targetId, '史记编辑: ' . $value);
+            addNotification($targetId, 'system', $value == 1 ? '您已被授权为史记板块编辑' : '您的史记编辑权限已被取消');
             header('Location: users.php?tab=' . urlencode($redirectTab));
             exit;
         }
@@ -131,6 +166,8 @@ function adminUserBtn($u, $tab, $action, $label, $class, $extraHidden = []) {
                 <li><a href="index.php">首页</a></li>
                 <li><a href="users.php" class="active">用户管理</a></li>
                 <li><a href="posts.php">帖子管理</a></li>
+                <li><a href="messages.php">站内信</a></li>
+                <li><a href="medals.php">勋章管理</a></li>
                 <li><a href="settings.php">系统设置</a></li>
                 <li><a href="index.php#logs">操作日志</a></li>
             </ul>
@@ -149,7 +186,8 @@ function adminUserBtn($u, $tab, $action, $label, $class, $extraHidden = []) {
                         <th>ID</th>
                         <th>用户名</th>
                         <th>物实ID</th>
-                        <th>V认证</th>
+                        <th>认证标记</th>
+                        <th>金币</th>
                         <th>状态</th>
                         <th>操作</th>
                     </tr>
@@ -162,18 +200,26 @@ function adminUserBtn($u, $tab, $action, $label, $class, $extraHidden = []) {
                             <a href="/user/profile.php?id=<?= (int)$u['id'] ?>">
                                 <?= escapeHtml($u['username']) ?>
                             </a>
+                            <?php if ($u['is_editor']): ?><span class="badge muted">史记编辑</span><?php endif; ?>
                         </td>
                         <td><?= escapeHtml($u['physics_id'] ?? '-') ?></td>
                         <td>
-                            <?php if ($u['vip_level'] === 'red'): ?>
-                                <span class="v-badge v-red">红V</span>
-                            <?php elseif ($u['vip_level'] === 'yellow'): ?>
-                                <span class="v-badge v-yellow">黄V</span>
-                            <?php elseif ($u['vip_level'] === 'blue'): ?>
-                                <span class="v-badge v-blue">蓝V</span>
+                            <?php $verifyLabel = $u['verify_label'] ?? ''; ?>
+                            <?php if ($verifyLabel !== '' && $verifyLabel !== null): ?>
+                                <?= getVerifyBadge($u) ?>
                             <?php else: ?>
                                 -
                             <?php endif; ?>
+                        </td>
+                        <td>
+                            <form method="POST" action="users.php" style="display:inline-flex;align-items:center;gap:4px">
+                                <?= csrfField() ?>
+                                <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
+                                <input type="hidden" name="tab" value="<?= escapeHtml($tab) ?>">
+                                <span class="coin-cell"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V17h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg> <?= (int)$u['coins'] ?></span>
+                                <input type="number" name="amount" value="0" step="1" class="admin-coin-input" title="正数增加，负数扣减">
+                                <button type="submit" name="action" value="coins" class="btn-sm primary">调</button>
+                            </form>
                         </td>
                         <td>
                             <?php if ($u['is_banned']): ?>
@@ -203,10 +249,19 @@ function adminUserBtn($u, $tab, $action, $label, $class, $extraHidden = []) {
                             <?php else: ?>
                                 <?= adminUserBtn($u, $tab, 'ban', '解封', 'secondary', ['value' => 0]) ?>
                             <?php endif; ?>
-                            <?= adminUserBtn($u, $tab, 'vip', '红V', 'danger', ['level' => 'red']) ?>
-                            <?= adminUserBtn($u, $tab, 'vip', '黄V', 'warning', ['level' => 'yellow']) ?>
-                            <?= adminUserBtn($u, $tab, 'vip', '蓝V', 'primary', ['level' => 'blue']) ?>
-                            <?= adminUserBtn($u, $tab, 'vip', '取消V', 'secondary', ['level' => 'none']) ?>
+                            <form method="POST" action="users.php" style="display:inline-flex;align-items:center;gap:4px;margin:2px">
+                                <?= csrfField() ?>
+                                <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
+                                <input type="hidden" name="tab" value="<?= escapeHtml($tab) ?>">
+                                <input type="text" name="label" maxlength="50" placeholder="认证标记文字" value="<?= escapeHtml($u['verify_label'] ?? '') ?>" class="admin-label-input" title="输入后点设置认证，作为该用户独有的认证标记">
+                                <button type="submit" name="action" value="setlabel" class="btn-sm primary">设置认证</button>
+                            </form>
+                            <?= adminUserBtn($u, $tab, 'clearlabel', '取消认证', 'secondary') ?>
+                            <?php if (!$u['is_editor']): ?>
+                                <?= adminUserBtn($u, $tab, 'editor', '授权史记编辑', 'secondary', ['value' => 1]) ?>
+                            <?php else: ?>
+                                <?= adminUserBtn($u, $tab, 'editor', '取消编辑授权', 'secondary', ['value' => 0]) ?>
+                            <?php endif; ?>
                         </td>
                     </tr>
                     <?php endforeach; ?>

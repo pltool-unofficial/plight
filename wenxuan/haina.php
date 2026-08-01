@@ -13,7 +13,7 @@ $total->execute(['wenxuan', '海纳']);
 $totalPosts = $total->fetchColumn();
 $totalPages = ceil($totalPosts / $perPage);
 
-$stmt = $db->prepare('SELECT p.*, u.username, u.vip_level FROM posts p JOIN users u ON p.user_id = u.id WHERE p.section = ? AND p.category = ? ORDER BY p.is_pinned DESC, p.created_at DESC LIMIT ? OFFSET ?');
+$stmt = $db->prepare('SELECT p.*, u.username, u.verify_label FROM posts p JOIN users u ON p.user_id = u.id WHERE p.section = ? AND p.category = ? ORDER BY p.is_pinned DESC, p.created_at DESC LIMIT ? OFFSET ?');
 $stmt->bindValue(1, 'wenxuan');
 $stmt->bindValue(2, '海纳');
 $stmt->bindValue(3, $perPage, PDO::PARAM_INT);
@@ -38,7 +38,7 @@ $posts = $stmt->fetchAll();
                     <li class="post-list-item">
                         <?php if ($post['is_pinned']): ?><span class="pin-tag">置顶</span><?php endif; ?>
                         <a href="<?= postUrl($post['id']) ?>" class="post-list-title"><?= escapeHtml($post['title']) ?></a>
-                        <div class="post-list-meta">作者: <?= escapeHtml($post['username']) ?> <?= getVBadge($post['vip_level']) ?> · <?= timeAgo($post['created_at']) ?> · 评论 <?= (int)$post['comment_count'] ?> · 浏览 <?= (int)$post['view_count'] ?></div>
+                        <div class="post-list-meta">作者: <?= escapeHtml($post['username']) ?> <?= getVerifyBadge($post['verify_label']) ?> · <?= timeAgo($post['created_at']) ?> · 评论 <?= (int)$post['comment_count'] ?> · 浏览 <?= (int)$post['view_count'] ?></div>
                     </li>
                 <?php endforeach; ?>
             </ul>

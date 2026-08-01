@@ -32,7 +32,7 @@ if ($page > $totalPages) {
 $offset = ($page - 1) * $perPage;
 
 $stmt = $db->prepare(
-    "SELECT p.*, u.username, u.avatar, u.vip_level
+    "SELECT p.*, u.username, u.avatar, u.verify_label
      FROM posts p JOIN users u ON p.user_id = u.id
      " . $where . "
      ORDER BY p.is_pinned DESC, p.created_at DESC

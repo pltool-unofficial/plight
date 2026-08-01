@@ -11,7 +11,7 @@ if ($postId <= 0) {
 $db = Database::getInstance();
 
 $stmt = $db->prepare(
-    'SELECT p.*, u.username, u.avatar, u.vip_level, u.is_admin
+    'SELECT p.*, u.username, u.avatar, u.verify_label, u.is_admin
      FROM posts p JOIN users u ON p.user_id = u.id
      WHERE p.id = ?'
 );
@@ -25,7 +25,7 @@ if (!$post) {
 incrementViewCount($postId);
 
 $stmt = $db->prepare(
-    'SELECT c.*, u.username, u.avatar, u.vip_level, u.is_admin
+    'SELECT c.*, u.username, u.avatar, u.verify_label, u.is_admin
      FROM comments c JOIN users u ON c.user_id = u.id
      WHERE c.post_id = ?
      ORDER BY c.created_at ASC'
@@ -71,7 +71,8 @@ include __DIR__ . '/includes/header.php';
                 <span class="post-author">
                     <img src="<?= escapeHtml($post['avatar'] ?? '/assets/images/default-avatar.svg') ?>" alt="头像" class="avatar-sm">
                     <a href="/user/profile.php?id=<?= (int)$post['user_id'] ?>"><?= escapeHtml($post['username']) ?></a>
-                    <?= getVBadge($post['vip_level']) ?>
+                    <?= getVerifyBadge($post['verify_label']) ?>
+                    <?= renderMedalBadges((int)$post['user_id'], 'post') ?>
                     <?php if ($post['is_admin']): ?><span class="admin-badge">管理员</span><?php endif; ?>
                 </span>
                 <span class="post-info">
@@ -119,7 +120,8 @@ include __DIR__ . '/includes/header.php';
                         <div class="comment-body">
                             <div class="comment-head">
                                 <a href="/user/profile.php?id=<?= (int)$comment['user_id'] ?>"><?= escapeHtml($comment['username']) ?></a>
-                                <?= getVBadge($comment['vip_level']) ?>
+                                <?= getVerifyBadge($comment['verify_label']) ?>
+                                <?= renderMedalBadges((int)$comment['user_id'], 'all') ?>
                                 <?php if ($comment['is_admin']): ?><span class="admin-badge">管理员</span><?php endif; ?>
                                 <span class="comment-time"><?= timeAgo($comment['created_at']) ?></span>
                             </div>
@@ -144,7 +146,8 @@ include __DIR__ . '/includes/header.php';
                                             <div class="comment-body">
                                                 <div class="comment-head">
                                                     <a href="/user/profile.php?id=<?= (int)$reply['user_id'] ?>"><?= escapeHtml($reply['username']) ?></a>
-                                                    <?= getVBadge($reply['vip_level']) ?>
+                                                    <?= getVerifyBadge($reply['verify_label']) ?>
+                                                    <?= renderMedalBadges((int)$reply['user_id'], 'all') ?>
                                                     <?php if ($reply['is_admin']): ?><span class="admin-badge">管理员</span><?php endif; ?>
                                                     <span class="comment-time"><?= timeAgo($reply['created_at']) ?></span>
                                                 </div>

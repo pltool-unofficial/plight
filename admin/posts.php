@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../includes/functions.php';
 startSession();
 
@@ -75,7 +75,7 @@ $totalPosts = $db->query('SELECT COUNT(*) FROM posts')->fetchColumn();
 $totalPages = ceil($totalPosts / $perPage);
 
 $stmt = $db->prepare(
-    'SELECT p.*, u.username AS author_name, u.vip_level
+    'SELECT p.*, u.username AS author_name, u.verify_label
      FROM posts p JOIN users u ON p.user_id = u.id
      ORDER BY p.created_at DESC
      LIMIT ? OFFSET ?'
@@ -121,6 +121,8 @@ function adminPostBtn($postId, $page, $action, $label, $class, $extraHidden = []
                 <li><a href="index.php">首页</a></li>
                 <li><a href="users.php">用户管理</a></li>
                 <li><a href="posts.php" class="active">帖子管理</a></li>
+                <li><a href="messages.php">站内信</a></li>
+                <li><a href="medals.php">勋章管理</a></li>
                 <li><a href="settings.php">系统设置</a></li>
                 <li><a href="index.php#logs">操作日志</a></li>
             </ul>
@@ -151,7 +153,7 @@ function adminPostBtn($postId, $page, $action, $label, $class, $extraHidden = []
                             <a href="/user/profile.php?id=<?= (int)$p['user_id'] ?>">
                                 <?= escapeHtml($p['author_name']) ?>
                             </a>
-                            <?= getVBadge($p['vip_level']) ?>
+                            <?= getVerifyBadge($p['verify_label']) ?>
                         </td>
                         <td><?= escapeHtml($sectionNames[$p['section']] ?? $p['section']) ?></td>
                         <td>
